@@ -1,6 +1,6 @@
 import { generateVideo } from "../src/comfy_client.js";
 import { concatenateClips } from "../src/cut.js";
-import { getGpuStatus } from "../src/gpu_sync.js";
+import { getGpuStatus, releaseGpuVram } from "../src/gpu_sync.js";
 import path from "node:path";
 import { OUTPUT_DIR } from "../src/config.js";
 
@@ -47,8 +47,19 @@ export async function generateFullEpisode() {
   console.log(`Current VRAM: ${status.vramFreeGb} GB free | GPU Ready: ${status.readyForH3}\n`);
 
   const renderedClips = [];
+  const fs = await import("node:fs");
 
   for (const scene of SCENES) {
+    const sceneFile = path.join(OUTPUT_DIR, EPISODE_NAME, `scene_0${scene.number}.mp4`);
+    if (fs.existsSync(sceneFile)) {
+      console.log(`\n--------------------------------------------------------------`);
+      console.log(`🎬 Scene ${scene.number}/4: "${scene.title}" already generated!`);
+      console.log(`   Using existing clip: ${sceneFile}`);
+      console.log(`--------------------------------------------------------------`);
+      renderedClips.push(sceneFile);
+      continue;
+    }
+
     console.log(`\n--------------------------------------------------------------`);
     console.log(`🎬 Rendering Scene ${scene.number}/4: "${scene.title}"...`);
     console.log(`--------------------------------------------------------------`);
@@ -67,8 +78,18 @@ export async function generateFullEpisode() {
       },
     });
 
-    console.log(`[Scene ${scene.number}] Saved to: ${result.videoPath}`);
-    renderedClips.push(result.videoPath);
+    // Copy to scene_0X.mp4 for clean ordering
+    if (result.videoPath && result.videoPath !== sceneFile) {
+      await fs.promises.copyFile(result.videoPath, sceneFile).catch(() => {});
+    }
+
+    console.log(`[Scene ${scene.number}] Saved to: ${sceneFile}`);
+    renderedClips.push(sceneFile);
+
+    // Free VRAM & system RAM cache between scenes to prevent memory pressure
+    console.log(`[Scene ${scene.number}] Freeing VRAM and system memory cache...`);
+    await releaseGpuVram();
+    await new Promise((r) => setTimeout(r, 5000));
   }
 
   console.log("\n==============================================================");

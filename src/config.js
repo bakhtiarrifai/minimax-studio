@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 
-export const PORT = Number(process.env.MINIMAX_STUDIO_PORT || 8792);
+export const PORT = Number(process.env.MINIMAX_STUDIO_PORT || 8795);
 export const COMFYUI_URL = process.env.COMFYUI_URL || "http://127.0.0.1:8188";
 export const COMFYUI_WS_URL = process.env.COMFYUI_WS_URL || "ws://127.0.0.1:8188/ws";
 export const OLLAMA_URL = process.env.OLLAMA_URL || "http://127.0.0.1:11434";

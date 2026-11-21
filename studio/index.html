@@ -464,21 +464,64 @@
     }
 
     function addSceneToTimeline(job) {
-      const track = document.getElementById('scenes-track');
-      const card = document.createElement('div');
-      card.className = 'scene-card active';
-      card.innerHTML = `
-        <div class="scene-title">Shot ${track.children.length + 1}</div>
-        <div class="scene-meta">${job.params.frames} frames (~${Math.round(job.params.frames/24*10)/10}s)</div>
-      `;
-      card.onclick = () => playVideo(job.result.videoPath);
-      track.appendChild(card);
+      loadScenes();
+    }
+
+    async function loadScenes() {
+      try {
+        const res = await fetch('/api/scenes');
+        const data = await res.json();
+        const scenes = data.scenes || [];
+        const track = document.getElementById('scenes-track');
+        track.innerHTML = '';
+        scenes.forEach((sc, idx) => {
+          const card = document.createElement('div');
+          card.className = idx === 0 ? 'scene-card active' : 'scene-card';
+          card.dataset.path = sc.path;
+          card.innerHTML = `
+            <div class="scene-title">${sc.filename}</div>
+            <div class="scene-meta">${(sc.size / (1024*1024)).toFixed(1)} MB</div>
+          `;
+          card.onclick = () => {
+            document.querySelectorAll('.scene-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            playVideo(sc.path);
+          };
+          track.appendChild(card);
+        });
+        const currentSrc = document.getElementById('video-source').getAttribute('src');
+        if (scenes.length > 0 && !currentSrc) {
+          playVideo(scenes[0].path);
+        }
+      } catch {}
     }
 
     async function cutMovie() {
       const cards = document.querySelectorAll('.scene-card');
       if (cards.length === 0) return alert('No scenes in timeline to stitch.');
-      alert('Stitching timeline scenes into final movie with FFmpeg...');
+      const clips = Array.from(cards).map(c => c.dataset.path).filter(Boolean);
+      if (!clips.length) return alert('No clips found to stitch.');
+      
+      const btn = event?.target;
+      const oldText = btn?.innerText;
+      if (btn) btn.innerText = 'Stitching...';
+      try {
+        const res = await fetch('/api/cut', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clips })
+        });
+        const data = await res.json();
+        if (data.outputPath) {
+          alert('Full episode movie exported: ' + data.outputPath);
+          await loadScenes();
+          playVideo(data.outputPath);
+        }
+      } catch (err) {
+        alert('Stitch error: ' + err.message);
+      } finally {
+        if (btn && oldText) btn.innerText = oldText;
+      }
     }
 
     function addScene() {
@@ -488,7 +531,9 @@
 
     loadStatus();
     loadTechniques();
+    loadScenes();
     setInterval(loadStatus, 5000);
+    setInterval(loadScenes, 10000);
   </script>
 </body>
 </html>

@@ -158,6 +158,46 @@ export function createStudioServer() {
         return;
       }
 
+      // 7.1 API: List generated scenes & videos
+      if (pathname === "/api/scenes" && req.method === "GET") {
+        const scenes = [];
+        const scanDir = async (dir) => {
+          if (!fs.existsSync(dir)) return;
+          const entries = await fsp.readdir(dir, { withFileTypes: true });
+          for (const ent of entries) {
+            const full = path.join(dir, ent.name);
+            if (ent.isDirectory()) {
+              await scanDir(full);
+            } else if (ent.isFile() && ent.name.endsWith(".mp4")) {
+              const stat = fs.statSync(full);
+              const thumbPath = full.replace(/\.mp4$/, "_thumbnail.png");
+              scenes.push({
+                filename: ent.name,
+                path: full,
+                size: stat.size,
+                mtime: stat.mtime,
+                hasThumbnail: fs.existsSync(thumbPath),
+                thumbnailPath: fs.existsSync(thumbPath) ? thumbPath : null,
+              });
+            }
+          }
+        };
+        await scanDir(OUTPUT_DIR);
+        scenes.sort((a, b) => new Date(b.mtime).getTime() - new Date(a.mtime).getTime());
+        return json(200, { scenes });
+      }
+
+      // 7.2 API: Stream thumbnail image
+      if (pathname === "/api/thumbnail" && req.method === "GET") {
+        const filePath = url.searchParams.get("path");
+        if (!filePath || !fs.existsSync(filePath)) {
+          return json(404, { error: "File not found" });
+        }
+        res.writeHead(200, { "Content-Type": "image/png" });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      }
+
       // 8. Serve static Web Studio UI
       let relPath = pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
       const fullPath = path.resolve(STUDIO_DIR, relPath);

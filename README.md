@@ -21,7 +21,7 @@ Assistant (Claude, agy, Codex) ──stdio──> minimax-studio ──REST / We
 ### 1. Launch the Local Web Studio
 ```bash
 cd /home/bakhtiarrifai/projects/minimax-studio
-npm run studio     # Opens Web UI at http://127.0.0.1:8792
+npm run studio     # Opens Web UI at http://127.0.0.1:8795
 ```
 
 ### 2. Drive from AI Assistants (Claude Code, Antigravity, Codex)
