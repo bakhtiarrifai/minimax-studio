@@ -87,6 +87,21 @@ The server hosts multiple AI services sharing an AMD Radeon RX 9060 XT (16 GB VR
 
 ---
 
+## 🐧 Linux Server & AMD Radeon RX 9060 XT (16GB) Support
+
+MiniMax H3 Studio was built and battle-tested on this Linux server with an **AMD Radeon RX 9060 XT (16 GB VRAM)** running **ROCm 7.2**.
+
+For the complete technical setup, memory guard architecture, and ROCm configuration, read:
+👉 **[LINUX_ROCM_RX9060XT_GUIDE.md](LINUX_ROCM_RX9060XT_GUIDE.md)**
+
+### Server Highlights:
+- **DiT FP8 Scaled:** Runs 33.1B diffusion transformer directly on RX 9060 XT RDNA 4 hardware.
+- **CPU Offloading:** Qwen3-VL 32B text encoder offloaded to CPU to keep 100% of 16 GB VRAM free for video generation.
+- **Pre-VAE Memory Guard:** Automatically unloads DiT before VAE decode to prevent ROCm `hipErrorInvalidValue`.
+- **Automated Multi-Service Sync:** Coordinates with Ollama and other apps via `comfy_gpu_sync`.
+
+---
+
 ## 🪟 Windows & NVIDIA RTX 3060 (12GB) Support
 
 MiniMax H3 Studio is fully compatible with **Windows 10/11** and **NVIDIA GeForce RTX 3060 (12 GB VRAM)**.
@@ -110,13 +125,15 @@ minimax-studio/
 ├── download_models_windows.bat# Automated Hugging Face model downloader for Windows
 ├── start_comfyui_rtx3060.bat  # ComfyUI launcher optimized for RTX 3060 12GB
 ├── start_studio.bat           # Web Studio launcher for Windows
+├── LINUX_ROCM_RX9060XT_GUIDE.md # Complete Linux ROCm + RX 9060 XT guide
 ├── WINDOWS_RTX3060_GUIDE.md   # Complete Windows + RTX 3060 guide
+├── LICENSE                    # MIT License
 ├── package.json               # MCP server & Studio scripts
 ├── custom_nodes/
 │   └── comfy_gpu_sync/        # ComfyUI VRAM arbiter & auto-sync custom node
 ├── src/
 │   ├── config.js              # Ports, paths, and default settings
-│   ├── gpu_sync.js            # Cross-platform GPU VRAM arbiter (NVIDIA & AMD)
+│   ├── gpu_sync.js            # Cross-platform GPU VRAM arbiter (AMD ROCm & NVIDIA CUDA)
 │   ├── comfy_client.js        # ComfyUI WebSocket & REST MiniMax H3 pipeline
 │   ├── techniques.js          # 40+ cinematic camera & audio presets
 │   ├── cut.js                 # Cross-platform FFmpeg video concatenation
@@ -127,7 +144,8 @@ minimax-studio/
 ├── studio/
 │   └── index.html             # Sleek dark-mode Studio Web UI with live player
 └── scripts/
-    ├── download_models.py     # Cross-platform Hugging Face model downloader
+    ├── download_models_linux.sh # Hugging Face model downloader for Linux
+    ├── download_models.py     # Cross-platform Hugging Face model downloader (Python)
     ├── generate_full_episode_13.js # Automated 4-scene episode production
     └── test-connection.js     # Health check & integration test
 ```
