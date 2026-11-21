@@ -28,18 +28,20 @@ export function buildMiniMaxWorkflow({
     "1": {
       inputs: {
         unet_name: MODELS.diffusion,
+        weight_dtype: "default",
       },
       class_type: "UNETLoader",
       _meta: { title: "Load MiniMax H3 DiT" },
     },
-    // 2. Text Encoder (Qwen3-VL 32B NVFP4)
+    // 2. Text Encoder (Qwen3-VL 32B NVFP4, loaded on CPU to preserve 100% VRAM for DiT)
     "2": {
       inputs: {
         clip_name: MODELS.text_encoder,
         type: "minimax",
+        device: "cpu",
       },
       class_type: "CLIPLoader",
-      _meta: { title: "Load MiniMax Text Encoder" },
+      _meta: { title: "Load MiniMax Text Encoder (CPU)" },
     },
     // 3. Video VAE (FP16)
     "3": {
@@ -290,8 +292,13 @@ export async function generateVideo({
             resolve(savedVideoFilename);
           }
         } else if (msg.type === "executed") {
-          if (msg.data.node === "15" && msg.data.output?.videos?.[0]) {
-            savedVideoFilename = msg.data.output.videos[0].filename;
+          if (msg.data.node === "15") {
+            const item = msg.data.output?.videos?.[0] || msg.data.output?.images?.[0] || msg.data.output?.video?.[0];
+            if (item) {
+              const subfolder = item.subfolder || "";
+              const fname = item.filename;
+              savedVideoFilename = subfolder ? path.join(subfolder, fname) : fname;
+            }
           }
         } else if (msg.type === "execution_error") {
           reject(new Error(`ComfyUI execution error: ${JSON.stringify(msg.data)}`));
