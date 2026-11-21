@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniMax H3 Studio — Local Omni-Modal Video & Audio</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --card: #131b26;
+      --border: #232f3e;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: rgba(19, 27, 38, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -0.5px;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .vram-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      background: #1a2332;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+    .main-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 380px 1fr 340px;
+      overflow: hidden;
+    }
+    .panel {
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .panel:last-child {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+    h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+    textarea, input, select {
+      background: #0f1722;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea:focus, input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.05s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: #1e293b;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #334155; }
+    .center-stage {
+      display: flex;
+      flex-direction: column;
+      background: #090d14;
+      position: relative;
+    }
+    .preview-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+    video {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      background: #000;
+      border: 1px solid var(--border);
+    }
+    .timeline {
+      height: 140px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .scenes-track {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      flex: 1;
+    }
+    .scene-card {
+      min-width: 130px;
+      background: #0f1722;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .scene-card.active { border-color: var(--accent); }
+    .scene-title { font-size: 0.8rem; font-weight: 600; }
+    .scene-meta { font-size: 0.7rem; color: var(--text-muted); }
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #10b981);
+      transition: width 0.3s;
+    }
+    .tag-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+    .tag-item {
+      font-size: 0.75rem;
+      background: #1a2332;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .tag-item:hover { border-color: var(--accent); }
+    .tag-item.active { background: var(--accent); color: white; border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🎬 MiniMax H3 Studio</span>
+      <span class="badge">AMD ROCm (16GB)</span>
+      <span class="badge">Omni-Modal Audio+Video</span>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <div class="vram-badge">
+        <span class="dot" id="vram-dot"></span>
+        <span id="vram-text">Checking GPU...</span>
+      </div>
+      <button class="btn btn-secondary" onclick="vacateVram()" style="padding: 6px 12px; font-size: 0.8rem;">
+        Vacate VRAM
+      </button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Left Panel: Scene Prompt & Techniques -->
+    <div class="panel">
+      <h2>Scene Composer</h2>
+
+      <div class="form-group">
+        <label>Prompt (Visuals & Audio Description)</label>
+        <textarea id="prompt" placeholder="A futuristic hypercar speeding along a rain-slick neon highway, heavy tires splashing puddles, camera low tracking alongside, roaring hybrid engine audio with rain foley..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Cinematic Techniques & Camera Moves</label>
+        <div class="tag-grid" id="techniques-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-group">
+          <label>Resolution</label>
+          <select id="resolution">
+            <option value="1344x768" selected>1344x768 (16:9 Landscape)</option>
+            <option value="1024x1024">1024x1024 (1:1 Square)</option>
+            <option value="768x1344">768x1344 (9:16 Portrait)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Duration (Frames)</label>
+          <select id="frames">
+            <option value="49" selected>49 frames (~2.0s)</option>
+            <option value="73">73 frames (~3.0s)</option>
+            <option value="97">97 frames (~4.0s)</option>
+            <option value="124">124 frames (~5.2s)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-group">
+          <label>Steps</label>
+          <input type="number" id="steps" value="25" min="15" max="50">
+        </div>
+        <div class="form-group">
+          <label>Seed</label>
+          <input type="number" id="seed" placeholder="Random">
+        </div>
+      </div>
+
+      <button class="btn" id="generate-btn" onclick="startGeneration()">
+        <span>⚡ Generate Shot (Omni-Modal)</span>
+      </button>
+
+      <div id="progress-card" style="display: none; background: #131b26; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+          <span id="progress-stage">Preparing GPU...</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Stage: Video Player & Timeline -->
+    <div class="center-stage">
+      <div class="preview-area">
+        <video id="player" controls autoplay loop playsinline>
+          <source id="video-source" src="" type="video/mp4">
+          Your browser does not support HTML5 video.
+        </video>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-header">
+          <h2>Timeline & Storyboard</h2>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" onclick="addScene()" style="padding: 4px 10px; font-size: 0.78rem;">+ Add Scene</button>
+            <button class="btn" onclick="cutMovie()" style="padding: 4px 12px; font-size: 0.78rem; background: var(--success);">Export Film (FFmpeg Cut)</button>
+          </div>
+        </div>
+        <div class="scenes-track" id="scenes-track">
+          <!-- Scene cards inserted dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Film Project & Assets -->
+    <div class="panel">
+      <h2>Project Assets</h2>
+      <div id="jobs-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <span style="font-size: 0.8rem; color: var(--text-muted);">No shots rendered yet. Click "Generate Shot" to produce your first clip.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeTechniques = new Set();
+    let currentJobId = null;
+    let pollInterval = null;
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const vram = data.gpu?.vramFreeGb;
+        const text = document.getElementById('vram-text');
+        const dot = document.getElementById('vram-dot');
+        if (vram !== undefined) {
+          text.innerText = `${vram} GB VRAM Free`;
+          dot.style.background = vram >= 14 ? 'var(--success)' : 'var(--warning)';
+        }
+      } catch {}
+    }
+
+    async function loadTechniques() {
+      try {
+        const res = await fetch('/api/techniques');
+        const data = await res.json();
+        const grid = document.getElementById('techniques-grid');
+        grid.innerHTML = '';
+        for (const [key, t] of Object.entries(data.techniques)) {
+          const div = document.createElement('div');
+          div.className = 'tag-item';
+          div.innerText = t.label;
+          div.onclick = () => {
+            if (activeTechniques.has(key)) {
+              activeTechniques.delete(key);
+              div.classList.remove('active');
+            } else {
+              activeTechniques.add(key);
+              div.classList.add('active');
+            }
+          };
+          grid.appendChild(div);
+        }
+      } catch {}
+    }
+
+    async function vacateVram() {
+      await fetch('/gpu_sync/vacate_ollama', { method: 'POST' }).catch(() => {});
+      await loadStatus();
+    }
+
+    async function startGeneration() {
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) return alert('Please enter a prompt.');
+
+      const [width, height] = document.getElementById('resolution').value.split('x').map(Number);
+      const frames = Number(document.getElementById('frames').value);
+      const steps = Number(document.getElementById('steps').value);
+      const seedVal = document.getElementById('seed').value;
+      const seed = seedVal ? Number(seedVal) : null;
+
+      document.getElementById('generate-btn').disabled = true;
+      document.getElementById('progress-card').style.display = 'block';
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            techniques: Array.from(activeTechniques),
+            width,
+            height,
+            frames,
+            steps,
+            seed,
+          })
+        });
+        const data = await res.json();
+        if (data.jobId) {
+          currentJobId = data.jobId;
+          pollProgress();
+        }
+      } catch (err) {
+        alert('Failed to start generation: ' + err.message);
+        document.getElementById('generate-btn').disabled = false;
+      }
+    }
+
+    function pollProgress() {
+      clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        if (!currentJobId) return;
+        try {
+          const res = await fetch(`/api/jobs/${currentJobId}`);
+          const data = await res.json();
+          const job = data.job;
+          if (!job) return;
+
+          document.getElementById('progress-pct').innerText = `${job.progress}%`;
+          document.getElementById('progress-bar').style.width = `${job.progress}%`;
+          document.getElementById('progress-stage').innerText = job.message || job.stage;
+
+          if (job.status === 'completed') {
+            clearInterval(pollInterval);
+            document.getElementById('generate-btn').disabled = false;
+            document.getElementById('progress-stage').innerText = 'Complete!';
+            if (job.result?.videoPath) {
+              playVideo(job.result.videoPath);
+              addSceneToTimeline(job);
+            }
+            loadStatus();
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval);
+            document.getElementById('generate-btn').disabled = false;
+            alert('Generation failed: ' + job.error);
+          }
+        } catch {}
+      }, 1500);
+    }
+
+    function playVideo(videoPath) {
+      const player = document.getElementById('player');
+      const src = document.getElementById('video-source');
+      src.src = `/api/video?path=${encodeURIComponent(videoPath)}`;
+      player.load();
+      player.play();
+    }
+
+    function addSceneToTimeline(job) {
+      const track = document.getElementById('scenes-track');
+      const card = document.createElement('div');
+      card.className = 'scene-card active';
+      card.innerHTML = `
+        <div class="scene-title">Shot ${track.children.length + 1}</div>
+        <div class="scene-meta">${job.params.frames} frames (~${Math.round(job.params.frames/24*10)/10}s)</div>
+      `;
+      card.onclick = () => playVideo(job.result.videoPath);
+      track.appendChild(card);
+    }
+
+    async function cutMovie() {
+      const cards = document.querySelectorAll('.scene-card');
+      if (cards.length === 0) return alert('No scenes in timeline to stitch.');
+      alert('Stitching timeline scenes into final movie with FFmpeg...');
+    }
+
+    function addScene() {
+      document.getElementById('prompt').value = '';
+      document.getElementById('seed').value = '';
+    }
+
+    loadStatus();
+    loadTechniques();
+    setInterval(loadStatus, 5000);
+  </script>
+</body>
+</html>
