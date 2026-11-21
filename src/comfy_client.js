@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { COMFYUI_URL, COMFYUI_WS_URL, MODELS, DEFAULT_SETTINGS, OUTPUT_DIR } from "./config.js";
 import { prepareGpuForGeneration, releaseGpuVram } from "./gpu_sync.js";
 import { applyTechniques } from "./techniques.js";
@@ -343,13 +344,45 @@ export async function generateVideo({
 
     let finalFilePath = videoFilename;
     if (videoFilename) {
-      const comfyOutputDir = path.join("/home/bakhtiarrifai/ComfyUI/output", videoFilename);
       const destPath = path.join(projectDir, path.basename(videoFilename));
+      let fetched = false;
+
+      // Method 1: Fetch directly from ComfyUI /view API (cross-platform, works on Windows, Linux, WSL, remote)
       try {
-        await fs.copyFile(comfyOutputDir, destPath);
-        finalFilePath = destPath;
-      } catch {
-        finalFilePath = comfyOutputDir;
+        const subfolder = path.dirname(videoFilename) === "." ? "" : path.dirname(videoFilename);
+        const filename = path.basename(videoFilename);
+        const viewUrl = `${COMFYUI_URL}/view?filename=${encodeURIComponent(filename)}&subfolder=${encodeURIComponent(subfolder)}&type=output`;
+        const res = await fetch(viewUrl, { signal: AbortSignal.timeout(30000) });
+        if (res.ok) {
+          const buffer = Buffer.from(await res.arrayBuffer());
+          await fs.writeFile(destPath, buffer);
+          finalFilePath = destPath;
+          fetched = true;
+        }
+      } catch (err) {
+        // Fallback to local file access
+      }
+
+      // Method 2: Fallback to filesystem copy if running on same machine
+      if (!fetched) {
+        const possibleDirs = [
+          process.env.COMFYUI_OUTPUT_DIR,
+          path.join(os.homedir(), "ComfyUI", "output"),
+          "C:\\ComfyUI_windows_portable\\ComfyUI\\output",
+          "D:\\ComfyUI_windows_portable\\ComfyUI\\output",
+          "C:\\ComfyUI\\output",
+          "/home/bakhtiarrifai/ComfyUI/output",
+        ].filter(Boolean);
+
+        for (const dir of possibleDirs) {
+          const sourcePath = path.join(dir, videoFilename);
+          try {
+            await fs.copyFile(sourcePath, destPath);
+            finalFilePath = destPath;
+            fetched = true;
+            break;
+          } catch {}
+        }
       }
     }
 

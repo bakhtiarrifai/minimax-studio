@@ -2,15 +2,40 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import fssync from "node:fs";
+
+/**
+ * Finds the ffmpeg executable across Linux and Windows.
+ */
+function getFfmpegPath() {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+
+  if (process.platform === "win32") {
+    const candidates = [
+      "ffmpeg",
+      "C:\\ComfyUI_windows_portable\\python_embeded\\Scripts\\ffmpeg.exe",
+      "D:\\ComfyUI_windows_portable\\python_embeded\\Scripts\\ffmpeg.exe",
+      "C:\\ffmpeg\\bin\\ffmpeg.exe",
+      "D:\\ffmpeg\\bin\\ffmpeg.exe",
+    ];
+    for (const c of candidates) {
+      if (c === "ffmpeg" || fssync.existsSync(c)) return c;
+    }
+  }
+
+  return "ffmpeg";
+}
+
+const FFMPEG_BIN = getFfmpegPath();
 
 /**
  * Executes an FFmpeg command with promise wrapping.
  */
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
-    execFile("ffmpeg", args, (err, stdout, stderr) => {
+    execFile(FFMPEG_BIN, args, (err, stdout, stderr) => {
       if (err) {
-        return reject(new Error(`FFmpeg failed: ${stderr || err.message}`));
+        return reject(new Error(`FFmpeg failed (${FFMPEG_BIN}): ${stderr || err.message}`));
       }
       resolve({ stdout, stderr });
     });
@@ -34,8 +59,9 @@ export async function concatenateClips(videoPaths, outputPath) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "minimax-cut-"));
   const listFile = path.join(tmpDir, "concat.txt");
   
+  // Format paths with forward slashes for FFmpeg concat demuxer (vital for Windows)
   const content = videoPaths
-    .map((p) => `file '${path.resolve(p).replace(/'/g, "'\\''")}'`)
+    .map((p) => `file '${path.resolve(p).replace(/\\/g, "/").replace(/'/g, "'\\''")}'`)
     .join("\n");
   await fs.writeFile(listFile, content, "utf-8");
 

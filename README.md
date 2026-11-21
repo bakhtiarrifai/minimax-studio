@@ -85,23 +85,49 @@ The server hosts multiple AI services sharing an AMD Radeon RX 9060 XT (16 GB VR
 
 ---
 
+---
+
+## 🪟 Windows & NVIDIA RTX 3060 (12GB) Support
+
+MiniMax H3 Studio is fully compatible with **Windows 10/11** and **NVIDIA GeForce RTX 3060 (12 GB VRAM)**.
+
+For complete step-by-step setup in Indonesian & English, read:
+👉 **[WINDOWS_RTX3060_GUIDE.md](WINDOWS_RTX3060_GUIDE.md)**
+
+### One-Click Windows Scripts:
+1. `setup_windows.bat`: Installs npm dependencies and copies `comfy_gpu_sync` into ComfyUI.
+2. `download_models_windows.bat`: Downloads the 4 quantized models from Hugging Face Hub.
+3. `start_comfyui_rtx3060.bat`: Starts ComfyUI with `--lowvram` flag for RTX 3060.
+4. `start_studio.bat`: Launches the Web Studio control panel at `http://127.0.0.1:8795`.
+
+---
+
 ## 📂 Project Structure
 
 ```
 minimax-studio/
+├── setup_windows.bat          # One-click Windows setup script
+├── download_models_windows.bat# Automated Hugging Face model downloader for Windows
+├── start_comfyui_rtx3060.bat  # ComfyUI launcher optimized for RTX 3060 12GB
+├── start_studio.bat           # Web Studio launcher for Windows
+├── WINDOWS_RTX3060_GUIDE.md   # Complete Windows + RTX 3060 guide
 ├── package.json               # MCP server & Studio scripts
+├── custom_nodes/
+│   └── comfy_gpu_sync/        # ComfyUI VRAM arbiter & auto-sync custom node
 ├── src/
 │   ├── config.js              # Ports, paths, and default settings
-│   ├── gpu_sync.js            # GPU VRAM arbiter and synchronization
+│   ├── gpu_sync.js            # Cross-platform GPU VRAM arbiter (NVIDIA & AMD)
 │   ├── comfy_client.js        # ComfyUI WebSocket & REST MiniMax H3 pipeline
 │   ├── techniques.js          # 40+ cinematic camera & audio presets
-│   ├── cut.js                 # Local FFmpeg video concatenation & audio mixing
-│   ├── server.js              # HTTP & WebSocket API server
+│   ├── cut.js                 # Cross-platform FFmpeg video concatenation
+│   ├── server.js              # HTTP & WebSocket API server + scenes gallery
 │   ├── studio.js              # Web Studio launcher CLI
 │   ├── mcp.js                 # MCP Server (stdio)
 │   └── register.js            # AI assistant registration script
 ├── studio/
-│   └── index.html             # Sleek dark-mode Studio Web UI
+│   └── index.html             # Sleek dark-mode Studio Web UI with live player
 └── scripts/
+    ├── download_models.py     # Cross-platform Hugging Face model downloader
+    ├── generate_full_episode_13.js # Automated 4-scene episode production
     └── test-connection.js     # Health check & integration test
 ```
