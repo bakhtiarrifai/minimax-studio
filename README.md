@@ -131,3 +131,10 @@ minimax-studio/
     ├── generate_full_episode_13.js # Automated 4-scene episode production
     └── test-connection.js     # Health check & integration test
 ```
+
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.
