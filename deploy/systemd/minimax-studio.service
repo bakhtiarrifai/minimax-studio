@@ -1,0 +1,16 @@
+# systemd --user unit for the Web Studio on the Ubuntu node.
+# Install: cp minimax-studio.service ~/.config/systemd/user/
+#          cp studio.env.example ~/.config/minimax-studio/env   (then edit)
+#          systemctl --user daemon-reload && systemctl --user enable --now minimax-studio
+[Unit]
+Description=MiniMax Studio Web UI (127.0.0.1:8795, published as minimax.upgradingu.com)
+
+[Service]
+WorkingDirectory=%h/projects/minimax-studio
+EnvironmentFile=%h/.config/minimax-studio/env
+ExecStart=/usr/bin/node src/studio.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

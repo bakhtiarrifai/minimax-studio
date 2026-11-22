@@ -5,6 +5,7 @@ import os from "node:os";
 import { COMFYUI_URL, COMFYUI_WS_URL, MODELS, DEFAULT_SETTINGS, OUTPUT_DIR } from "./config.js";
 import { prepareGpuForGeneration, releaseGpuVram } from "./gpu_sync.js";
 import { applyTechniques } from "./techniques.js";
+import { safeName } from "./security.js";
 
 /**
  * Builds the native ComfyUI MiniMax H3 execution graph.
@@ -339,7 +340,7 @@ export async function generateVideo({
     await releaseGpuVram();
 
     // 4. Save video to user output project directory
-    const projectDir = path.join(OUTPUT_DIR, projectName);
+    const projectDir = path.join(OUTPUT_DIR, safeName(projectName));
     await fs.mkdir(projectDir, { recursive: true });
 
     let finalFilePath = videoFilename;

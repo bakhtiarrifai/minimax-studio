@@ -12,7 +12,8 @@
     "start": "node src/mcp.js",
     "studio": "node src/studio.js",
     "register": "node src/register.js",
-    "test-connection": "node scripts/test-connection.js"
+    "test-connection": "node scripts/test-connection.js",
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=22"

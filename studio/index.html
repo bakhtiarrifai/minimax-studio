@@ -292,6 +292,14 @@
         </div>
       </div>
 
+      <div class="form-group" id="keyframe-row" style="display: none;">
+        <label>First frame (from shared images)</label>
+        <div style="display: flex; gap: 8px; align-items: center; font-size: 0.8rem;">
+          <span id="keyframe-name" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+          <button class="btn btn-secondary" onclick="setKeyframe(null)" style="padding: 2px 8px; font-size: 0.75rem;">Clear</button>
+        </div>
+      </div>
+
       <button class="btn" id="generate-btn" onclick="startGeneration()">
         <span>⚡ Generate Shot (Omni-Modal)</span>
       </button>
@@ -336,6 +344,20 @@
       <div id="jobs-list" style="display: flex; flex-direction: column; gap: 10px;">
         <span style="font-size: 0.8rem; color: var(--text-muted);">No shots rendered yet. Click "Generate Shot" to produce your first clip.</span>
       </div>
+
+      <h2 style="margin-top: 18px;">Shared Assets (GaiaNAS)</h2>
+      <div id="storage-info" style="font-size: 0.72rem; color: var(--text-muted); margin-bottom: 8px; word-break: break-all;"></div>
+      <div id="music-row" style="display: none; font-size: 0.78rem; margin-bottom: 8px;">
+        Soundtrack for Export: <b id="music-name"></b>
+        <button class="btn btn-secondary" onclick="setMusic(null)" style="padding: 2px 8px; font-size: 0.72rem;">Clear</button>
+      </div>
+      <audio id="audio-preview" controls style="width: 100%; display: none; margin-bottom: 8px;"></audio>
+      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <button class="btn btn-secondary" id="tab-audio" onclick="showAssets('audio')" style="padding: 4px 10px; font-size: 0.75rem;">Audio</button>
+        <button class="btn btn-secondary" id="tab-images" onclick="showAssets('images')" style="padding: 4px 10px; font-size: 0.75rem;">Images</button>
+        <button class="btn btn-secondary" id="tab-final" onclick="showAssets('final')" style="padding: 4px 10px; font-size: 0.75rem;">Final</button>
+      </div>
+      <div id="assets-list" style="display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem;"></div>
     </div>
   </div>
 
@@ -343,6 +365,78 @@
     let activeTechniques = new Set();
     let currentJobId = null;
     let pollInterval = null;
+    let firstFramePath = null;
+    let musicPath = null;
+    let assetData = { configured: false, assets: {} };
+    let assetTab = 'audio';
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const assetUrl = (p) => `/api/asset?path=${encodeURIComponent(p)}`;
+
+    function setKeyframe(asset) {
+      firstFramePath = asset ? asset.path : null;
+      document.getElementById('keyframe-row').style.display = asset ? 'block' : 'none';
+      document.getElementById('keyframe-name').textContent = asset ? asset.name : '';
+    }
+
+    function setMusic(asset) {
+      musicPath = asset ? asset.path : null;
+      document.getElementById('music-row').style.display = asset ? 'block' : 'none';
+      document.getElementById('music-name').textContent = asset ? asset.name : '';
+    }
+
+    function showAssets(tab) {
+      assetTab = tab;
+      ['audio', 'images', 'final'].forEach((t) => {
+        document.getElementById('tab-' + t).style.outline = t === tab ? '1px solid var(--accent, #4aa3ff)' : 'none';
+      });
+      const list = document.getElementById('assets-list');
+      if (!assetData.configured) {
+        list.innerHTML = '<span style="color: var(--text-muted);">Shared storage is not configured (set MINIMAX_ASSETS_ROOT).</span>';
+        return;
+      }
+      const items = (assetData.assets[tab] || []).slice(0, 60);
+      if (!items.length) {
+        list.innerHTML = `<span style="color: var(--text-muted);">Nothing in ${esc(tab)}/ yet.</span>`;
+        return;
+      }
+      list.innerHTML = '';
+      items.forEach((a) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; gap: 6px; align-items: center; background: #131b26; padding: 6px 8px; border-radius: 6px;';
+        const name = document.createElement('span');
+        name.style.cssText = 'flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+        name.textContent = a.name;
+        name.title = `${a.name} (${(a.size / (1024 * 1024)).toFixed(1)} MB)`;
+        row.appendChild(name);
+        const button = (label, fn) => {
+          const b = document.createElement('button');
+          b.className = 'btn btn-secondary';
+          b.style.cssText = 'padding: 2px 8px; font-size: 0.72rem;';
+          b.textContent = label;
+          b.onclick = fn;
+          row.appendChild(b);
+        };
+        if (tab === 'audio') {
+          button('Play', () => { const p = document.getElementById('audio-preview'); p.style.display = 'block'; p.src = assetUrl(a.path); p.play(); });
+          button('Use', () => setMusic(a));
+        } else if (tab === 'images') {
+          button('View', () => window.open(assetUrl(a.path), '_blank'));
+          button('First frame', () => setKeyframe(a));
+        } else {
+          button('Play', () => playVideo(a.path));
+        }
+        list.appendChild(row);
+      });
+    }
+
+    async function loadAssets() {
+      try {
+        const res = await fetch('/api/assets');
+        assetData = await res.json();
+        showAssets(assetTab);
+      } catch {}
+    }
 
     async function loadStatus() {
       try {
@@ -355,6 +449,10 @@
           text.innerText = `${vram} GB VRAM Free`;
           dot.style.background = vram >= 14 ? 'var(--success)' : 'var(--warning)';
         }
+        const st = data.storage || {};
+        document.getElementById('storage-info').textContent = st.assetsRoot
+          ? `Shots → ${st.outputDir} · Final → ${st.finalDir}`
+          : `Local storage: ${st.outputDir || ''}`;
       } catch {}
     }
 
@@ -412,12 +510,15 @@
             frames,
             steps,
             seed,
+            firstFramePath,
           })
         });
         const data = await res.json();
         if (data.jobId) {
           currentJobId = data.jobId;
           pollProgress();
+        } else {
+          throw new Error(data.error || `HTTP ${res.status}`);
         }
       } catch (err) {
         alert('Failed to start generation: ' + err.message);
@@ -481,7 +582,7 @@
           card.className = idx === 0 ? 'scene-card active' : 'scene-card';
           card.dataset.path = sc.path;
           card.innerHTML = `
-            <div class="scene-title">${sc.filename}</div>
+            <div class="scene-title">${esc(sc.filename)}</div>
             <div class="scene-meta">${(sc.size / (1024*1024)).toFixed(1)} MB</div>
           `;
           card.onclick = () => {
@@ -511,13 +612,16 @@
         const res = await fetch('/api/cut', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clips })
+          body: JSON.stringify({ clips, musicPath })
         });
         const data = await res.json();
         if (data.outputPath) {
           alert('Full episode movie exported: ' + data.outputPath);
           await loadScenes();
+          await loadAssets();
           playVideo(data.outputPath);
+        } else if (data.error) {
+          alert('Stitch error: ' + data.error);
         }
       } catch (err) {
         alert('Stitch error: ' + err.message);
@@ -534,8 +638,10 @@
     loadStatus();
     loadTechniques();
     loadScenes();
+    loadAssets();
     setInterval(loadStatus, 5000);
     setInterval(loadScenes, 10000);
+    setInterval(loadAssets, 15000);
   </script>
 </body>
 </html>

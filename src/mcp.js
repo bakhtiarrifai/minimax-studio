@@ -71,7 +71,7 @@ server.registerTool(
       seed: z.number().optional().describe("Optional fixed seed for reproducibility"),
       first_frame_path: z.string().optional().describe("Optional path to first frame image (for Image-to-Video / FL2V)"),
       last_frame_path: z.string().optional().describe("Optional path to last frame image"),
-      project_name: z.string().optional().default("default").describe("Project folder name in ~/minimax-studio-out/"),
+      project_name: z.string().optional().default("default").describe("Project folder name inside the shots folder (~/minimax-studio-out/, or <assets>/videos/ when MINIMAX_ASSETS_ROOT is set)"),
     }),
   },
   async (args) => {
