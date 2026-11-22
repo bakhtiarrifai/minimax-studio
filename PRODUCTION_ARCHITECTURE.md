@@ -113,3 +113,44 @@ Setelah semuanya terhubung, alur kerja Anda dari luar rumah adalah sebagai berik
 3. **Mulai Render:** Anda memasukkan *prompt* teks dan memilih file referensi audio.
 4. **Eksekusi:** Ubuntu Server akan membaca aset dari NAS, memproses video menggunakan GPU AMD, dan menyimpan video hasilnya kembali ke NAS (`/mnt/gaianas/videos`).
 5. **Review Akhir:** Anda dapat memutar hasilnya langsung di *browser* (melalui Web Studio) atau memicu fungsi `h3_cut` untuk merender episode final. Hasil final bisa diakses atau diunduh dari NAS Anda kapan saja.
+---
+
+## 5. Status Implementasi (23 November 2026)
+
+Kondisi nyata ternyata lebih sederhana dari rancangan di atas: **GaiaNAS adalah disk Ubuntu Server itu sendiri**
+(`/dev/sda1` di `/mnt/gaia`, dibagikan lewat Samba sebagai `Gaia-NAS-All`). Jadi di Node B tidak perlu mount NFS/SMB
+(Langkah 1 dilewati), dan `production_assets` ada di `/mnt/gaia/production_assets`.
+
+| Bagian | Status | Detail |
+|---|---|---|
+| Folder produksi di NAS | ✅ | `/mnt/gaia/production_assets/{audio,images,videos,final}` |
+| Web Studio di Node B | ✅ | Service `systemctl --user minimax-studio`, `127.0.0.1:8795`, env di `~/.config/minimax-studio/env` |
+| Path studio → NAS (Langkah 2) | ✅ | `MINIMAX_ASSETS_ROOT=/mnt/gaia/production_assets`: shot ke `videos/`, export ke `final/`, panel "Shared Assets" membaca `audio/` dan `images/` |
+| Keamanan studio | ✅ | Login wajib (user `studio`, password di `~/.config/minimax-studio/password`), endpoint file dikunci ke folder produksi, tanpa CORS. Sebelumnya `/api/video` bisa membaca file apa pun di disk |
+| MiniMax H3 di Node B (ROCm, RX 9060 XT) | ✅ | `comfyui.service` di `127.0.0.1:8188`, model lengkap, 4 shot sudah dirender 21 Nov (±9 menit per shot) |
+| Node A → NAS | ⚠️ sebagian | `scripts/sync_to_nas.ps1` menyalin audio/keyframe lewat SSH (sudah diuji). Drive `Z:` belum bisa: Windows 11 mewajibkan SMB signing, sedangkan share hanya mengizinkan tamu |
+| `minimax.upgradingu.com` (Langkah 3) | ⏳ menunggu izin | Rencana: tambah ingress di tunnel `screener` → `http://127.0.0.1:8795`, `cloudflared tunnel route dns`, restart tunnel |
+| Cloudflare Access (Langkah 3.5) | ⏳ manual | Hanya bisa lewat dashboard Cloudflare. Login aplikasi sudah aktif, Access menjadi lapisan kedua |
+| Nginx Proxy Manager (Langkah 4) | ✖ tidak dipakai | Cloudflare Tunnel sudah ada dan tidak perlu membuka port router |
+
+### Langkah yang tersisa
+
+1. **Publikasi domain** (di server, mengubah DNS publik dan me-restart tunnel yang juga melayani `llm`, `screener`,
+   `godeye`, `gaianas` selama beberapa detik):
+   ```bash
+   cp ~/.cloudflared/screener.yml ~/.cloudflared/screener.yml.bak-minimax
+   # sisipkan sebelum "- service: http_status:404":
+   #   - hostname: minimax.upgradingu.com
+   #     service: http://127.0.0.1:8795
+   cloudflared tunnel --config ~/.cloudflared/screener.yml ingress validate
+   cloudflared tunnel route dns screener minimax.upgradingu.com
+   systemctl --user restart screener-tunnel
+   ```
+2. **Cloudflare Access** untuk `minimax.upgradingu.com` (Zero Trust → Access → Applications), login email Anda.
+3. **Drive Z: di Windows**: sekali di server `sudo smbpasswd -a bakhtiarrifai`, lalu di Windows
+   `scripts\map_nas_drive.bat`. Setelah itu `start_comfyui_nas.bat` menyimpan audio/gambar ComfyUI langsung ke NAS.
+
+### Spec produksi konten
+
+Aturan konten (format seri, adab visual, cek fakta hadits, parameter H3, checklist) ada di `CONTENT_PRODUCTION_SPEC.md`,
+disalin dari kit Shorts Flow Studio terbaru (`production/shorts/`).
