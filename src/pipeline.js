@@ -236,3 +236,21 @@ export function stop(id) {
   if (st.child) st.child.kill("SIGTERM");
   return { stopping: true, note: st.mode === "auto" ? "Stops after the shot that is rendering now." : "The agent is stopped now." };
 }
+
+// ------------------------------------------------------------------ audio worker queue (the Windows PC pulls these)
+
+// Requests written by runs with MINIMAX_AUDIO_FROM=worker whose audio has not been delivered yet.
+export async function audioJobs() {
+  const out = [];
+  if (!fs.existsSync(FINAL_DIR)) return out;
+  for (const ent of await fsp.readdir(FINAL_DIR, { withFileTypes: true })) {
+    if (!ent.isDirectory()) continue;
+    const req = path.join(FINAL_DIR, ent.name, "audio_request.json");
+    if (!fs.existsSync(req) || fs.existsSync(path.join(episodeDirs(ent.name).audio, "audio_done.json"))) continue;
+    try {
+      const job = JSON.parse(await fsp.readFile(req, "utf8"));
+      out.push({ ...job, id: safeName(job.id ?? ent.name), audioDir: episodeDirs(ent.name).audio });
+    } catch {}
+  }
+  return out.sort((a, b) => String(a.requestedAt).localeCompare(String(b.requestedAt)));
+}

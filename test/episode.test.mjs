@@ -116,3 +116,49 @@ test("starting without keyframes for every scene is refused unless text-only is 
   await assert.rejects(pipeline.start({ markdown: one, mode: "auto", settings: {} }), (e) => e.status === 400 && /keyframe/.test(e.message));
   await assert.rejects(pipeline.start({ markdown: one, mode: "agent", settings: {} }), (e) => e.status === 400);
 });
+
+test("worker audio: the run requests audio, renders meanwhile, waits, then mixes narration and backsound", async () => {
+  const e = { ...ep.parseSpec(SPEC)[2], id: "ep11_worker" };
+  const dirs = ep.episodeDirs(e.id);
+  let renders = 0;
+  const deliver = () => {
+    mkdirSync(dirs.audio, { recursive: true });
+    ffmpeg(["-f", "lavfi", "-i", "sine=f=220:d=28", "-ar", "48000", join(dirs.audio, "vo_id.wav")]);
+    ffmpeg(["-f", "lavfi", "-i", "sine=f=110:d=36", "-ac", "2", "-ar", "44100", join(dirs.audio, "bgm.flac")]);
+    writeFileSync(join(dirs.audio, "audio_done.json"), JSON.stringify({ id: e.id, files: ["vo_id.wav", "bgm.flac"], warnings: [] }));
+  };
+  const deps = {
+    pollMs: 50,
+    generate: async ({ projectName, frames, width, height }) => {
+      renders += 1;
+      const dir = join(process.env.MINIMAX_ASSETS_ROOT, "videos", projectName);
+      mkdirSync(dir, { recursive: true });
+      const out = join(dir, `w_${renders}.mp4`);
+      ffmpeg(["-f", "lavfi", "-i", `testsrc2=s=${width}x${height}:r=24`, "-frames:v", String(frames), "-pix_fmt", "yuv420p", out]);
+      return { videoPath: out };
+    },
+    upload: async (_b, name) => name,
+    speak: async () => assert.fail("the server must not record narration in worker mode"),
+    titleCard: async () => null,
+  };
+  const pending = await (async () => {
+    // The request is visible to the PC as soon as the run starts; deliver the audio a little later.
+    const run = ep.runEpisode(e, { frames: 49, shotsPerScene: 1, width: 288, height: 512, allowTextOnly: true, audioFrom: "worker" }, { onLog: () => {}, deps });
+    for (let i = 0; i < 100 && !(await pipeline.audioJobs()).some((j) => j.id === e.id); i++) await new Promise((r) => setTimeout(r, 50));
+    const jobs = await pipeline.audioJobs();
+    const job = jobs.find((j) => j.id === e.id);
+    assert.ok(job, "audio request listed for the worker");
+    assert.match(job.narration, /lebih ia sukai/);
+    assert.equal(job.voice, "Leda");
+    deliver();
+    return run;
+  })();
+  const r = await pending;
+  assert.equal(renders, 4);
+  assert.equal((await pipeline.audioJobs()).some((j) => j.id === e.id), false, "delivered requests leave the queue");
+  const info = probe(r.output);
+  assert.equal(Math.round(Number(info.format.duration)), 33);
+  const notes = readFileSync(join(dirs.final, "PRODUCTION.md"), "utf8");
+  assert.match(notes, /Powered by Stability AI/);
+  assert.ok(r.warnings.some((w) => /Title card/.test(w)));
+});

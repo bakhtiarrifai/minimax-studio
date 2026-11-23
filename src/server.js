@@ -212,6 +212,9 @@ export function createStudioServer({ auth = null } = {}) {
       if (pathname === "/api/episodes/start" && req.method === "POST") {
         return json(202, { run: await pipeline.start(await parseJsonBody(req, 600 * 1024)) });
       }
+      if (pathname === "/api/audio-jobs" && req.method === "GET") {
+        return json(200, { jobs: await pipeline.audioJobs() });
+      }
       if (pathname === "/api/episodes" && req.method === "GET") {
         return json(200, { runs: await pipeline.list() });
       }

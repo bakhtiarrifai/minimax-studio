@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { ASSET_DIRS, OUTPUT_DIR, FINAL_DIR } from "./config.js";
 import { runFfmpeg } from "./cut.js";
 import { safeName } from "./security.js";
+import { BGM_CREDIT } from "./bgm.js";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILM = 33; // seconds, cover included
@@ -225,26 +226,26 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
     if (long.length) warnings.push(`${long.length} subtitle cue(s) will wrap to more than two lines; shorten them in the spec.`);
   } else warnings.push("The spec has no subtitles: the draft has none.");
 
-  // 2. Narration.
+  // 2. Audio. With MINIMAX_AUDIO_FROM=worker (the Ubuntu node) the Windows PC makes the narration and the backsound:
+  // the run writes final/<episode>/audio_request.json, renders the shots meanwhile, and waits for
+  // audio/<episode>/audio_done.json before assembling. Otherwise the narration is recorded here (no backsound).
   const vo = path.join(dirs.audio, "vo_id.wav");
-  if (fs.existsSync(vo)) log("narration: using the existing audio/" + ep.id + "/vo_id.wav");
-  else if (ep.narration) {
+  const done = path.join(dirs.audio, "audio_done.json");
+  const fromWorker = (s.audioFrom ?? process.env.MINIMAX_AUDIO_FROM) === "worker";
+  if (fromWorker && !fs.existsSync(done)) {
+    await fsp.writeFile(path.join(dirs.final, "audio_request.json"), JSON.stringify({
+      id: ep.id, requestedAt: new Date().toISOString(), voice: s.voice, narration: ep.narration, narrateStyle: ep.narrateStyle,
+      bgm: { seconds: FILM + 3, seed, prompt: s.bgmPrompt ?? null },
+    }, null, 2));
+    log("audio: requested from the PC audio worker (narration + backsound); rendering the shots meanwhile");
+  } else if (fs.existsSync(vo)) log("narration: using the existing audio/" + ep.id + "/vo_id.wav");
+  else if (ep.narration && !fromWorker) {
     log("narration: recording with Google TTS " + s.voice);
     try {
       await (deps.speak ?? speak)(ep.narration, vo, { voice: s.voice, style: ep.narrateStyle });
     } catch (err) {
       warnings.push(`Narration not recorded: ${err.message}`);
       log("narration failed: " + err.message);
-    }
-  }
-  let tempo = 1;
-  if (fs.existsSync(vo)) {
-    const d = await duration(vo);
-    tempo = Math.max(1, d / (FILM - COVER - 0.4));
-    log(`narration: ${d.toFixed(1)} s${tempo > 1 ? `, needs x${tempo.toFixed(2)}` : ""}`);
-    if (tempo > MAX_TEMPO) {
-      warnings.push(`Narration is ${d.toFixed(1)} s and would need x${tempo.toFixed(2)}; capped at x${MAX_TEMPO}, so the end is cut. Shorten the script or re-record.`);
-      tempo = MAX_TEMPO;
     }
   }
 
@@ -283,6 +284,34 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
     }
   }
   if (shouldStop()) throw Object.assign(new Error("Stopped before assembly"), { stopped: true });
+  if (fromWorker && !fs.existsSync(done)) {
+    log("audio: waiting for the PC audio worker (it must be running with ComfyUI on the Windows PC)");
+    let waited = 0;
+    while (!fs.existsSync(done)) {
+      if (shouldStop()) throw Object.assign(new Error("Stopped while waiting for audio"), { stopped: true });
+      await new Promise((r) => setTimeout(r, deps.pollMs ?? 15_000));
+      waited += deps.pollMs ?? 15_000;
+      if (waited % 600_000 < (deps.pollMs ?? 15_000)) log(`audio: still waiting (${Math.round(waited / 60_000)} min)`);
+    }
+    log("audio: received from the PC");
+  }
+  if (fs.existsSync(done)) {
+    try {
+      const d = JSON.parse(await fsp.readFile(done, "utf8"));
+      for (const w of d.warnings ?? []) warnings.push(`Audio worker: ${w}`);
+    } catch {}
+  }
+  let tempo = 1;
+  if (fs.existsSync(vo)) {
+    const d = await duration(vo);
+    tempo = Math.max(1, d / (FILM - COVER - 0.4));
+    log(`narration: ${d.toFixed(1)} s${tempo > 1 ? `, needs x${tempo.toFixed(2)}` : ""}`);
+    if (tempo > MAX_TEMPO) {
+      warnings.push(`Narration is ${d.toFixed(1)} s and would need x${tempo.toFixed(2)}; capped at x${MAX_TEMPO}, so the end is cut. Shorten the script or re-record.`);
+      tempo = MAX_TEMPO;
+    }
+  }
+  const bgm = ["bgm.flac", "bgm.wav"].map((f) => path.join(dirs.audio, f)).find((f) => fs.existsSync(f)) ?? null;
 
   // 4. Cover, title, assembly.
   log("assembling the 33 s draft");
@@ -319,6 +348,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   shots.forEach((f) => inputs.push("-i", f));
   const hasVo = fs.existsSync(vo);
   if (hasVo) inputs.push("-i", vo);
+  if (bgm) inputs.push("-i", bgm);
   const n = shots.length;
   const V = "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,fps=30,setsar=1,format=yuv420p";
   let fc = `[0:v]scale=2160:3840,zoompan=z='min(1+0.0026*on,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,setsar=1,format=yuv420p[c];`;
@@ -329,9 +359,18 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   fc += fs.existsSync(srtPath)
     ? `[v0]subtitles='${srtArg}':force_style='FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1.6,Alignment=2,MarginV=32,MarginL=6,MarginR=6'[v]`
     : `[v0]null[v]`;
-  if (hasVo) fc += `;[${n + 1}:a]atempo=${tempo.toFixed(3)},adelay=500|500,apad,atrim=0:${FILM},afade=t=out:st=${FILM - 0.6}:d=0.6[a]`;
+  const end = `afade=t=out:st=${FILM - 0.8}:d=0.8`;
+  const voIn = n + 1;
+  const bgIn = hasVo ? n + 2 : n + 1;
+  const bgChain = `aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=-20:TP=-2,atrim=0:${FILM},afade=t=in:d=0.5`;
+  const voChain = `atempo=${tempo.toFixed(3)},adelay=500|500,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=0:${FILM}`;
+  if (hasVo && bgm) {
+    // Backsound about 30 % under the narration, ducked further while the narration speaks (Ep14 / shorts kit levels).
+    fc += `;[${voIn}:a]${voChain},asplit[vo][key];[${bgIn}:a]${bgChain},volume=0.45[bg0];[bg0][key]sidechaincompress=threshold=0.08:ratio=3:attack=30:release=400[bg];[vo][bg]amix=inputs=2:normalize=0,alimiter=limit=0.89,${end}[a]`;
+  } else if (hasVo) fc += `;[${voIn}:a]${voChain},${end}[a]`;
+  else if (bgm) fc += `;[${bgIn}:a]${bgChain},volume=0.8,${end}[a]`;
   else fc += `;anullsrc=r=48000:cl=stereo,atrim=0:${FILM}[a]`;
-  if (!hasVo) warnings.push("No narration: the draft is silent.");
+  if (!hasVo) warnings.push(bgm ? "No narration: only the backsound plays." : "No narration: the draft is silent.");
   await runFfmpeg(["-v", "error", "-y", ...inputs, "-filter_complex", fc, "-map", "[v]", "-map", "[a]", "-t", String(FILM), "-r", "30", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out]);
   await fsp.rm(work, { recursive: true, force: true });
 
@@ -342,6 +381,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
     `- Draft: \`${path.basename(out)}\` (1080x1920, 30 fps, ${FILM} s). Thumbnail: \`${path.basename(thumb)}\`.`,
     `- Shots: ${shots.length} x ${s.frames} frames at ${s.width}x${s.height}, ${s.steps} steps, seed from ${seed}; footage ${footage.toFixed(1)} s, retimed x${stretch.toFixed(2)}.`,
     `- Narration: ${hasVo ? `audio/${ep.id}/vo_id.wav, tempo x${tempo.toFixed(2)}` : "none"}. Subtitles: ${fs.existsSync(srtPath) ? "subs/en.srt from the spec" : "none"}.`,
+    `- ${bgm ? `${BGM_CREDIT} (audio/${ep.id}/${path.basename(bgm)})` : "Backsound: none"}.`,
     `- Sources in the spec: ${ep.sources ?? "none given"}.`,
     "",
     "## Warnings",
