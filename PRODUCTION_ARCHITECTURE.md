@@ -133,12 +133,15 @@ Kondisi nyata ternyata lebih sederhana dari rancangan di atas: **GaiaNAS adalah 
 | Cloudflare Access (Langkah 3.5) | ✅ | Subdomain langsung tercakup aplikasi Access `upgradingu` yang sama dengan `screener`/`godeye`/`gaianas` (login Google). Pastikan kebijakannya hanya mengizinkan email pribadi Anda |
 | Nginx Proxy Manager (Langkah 4) | ✖ tidak dipakai | Cloudflare Tunnel sudah ada dan tidak perlu membuka port router |
 
-### Langkah yang tersisa
+### Verifikasi dan keputusan (23 November 2026)
 
-1. **Cek kebijakan Access** di Zero Trust → Access → Applications: aplikasi yang mencakup `*.upgradingu.com` hanya
-   mengizinkan email pribadi Anda.
-2. **(Opsional) Drive Z: di Windows**: sekali di server `sudo smbpasswd -a bakhtiarrifai`, lalu di Windows
-   `scripts\map_nas_drive.bat`. Setelah itu `start_comfyui_nas.bat` menyimpan audio/gambar ComfyUI langsung ke NAS.
+- **Login**: diuji pemilik. `https://minimax.upgradingu.com` terbuka normal setelah satu kali login Cloudflare dengan
+  email pribadi. Studio menolak (403) request tanpa token Access yang sah; request lokal di server tidak perlu token.
+- **Render lewat studio di Node B**: 49 frame 576×1024 dengan audio selesai dalam 7,2 menit, tersimpan otomatis di
+  `videos/pipeline_test_20261123/`.
+- **Node A**: pemilik memilih sinkronisasi SSH (`scripts\sync_to_nas.ps1`). Drive `Z:` tidak dipakai. Kalau suatu saat
+  diperlukan: sekali di server `sudo smbpasswd -a bakhtiarrifai`, lalu di Windows `scripts\map_nas_drive.bat`.
+- **Git**: dikirim sebagai branch `feat/multi-node-production`. `main` sengaja belum diubah, atas keputusan pemilik.
 
 ### Spec produksi konten
 
