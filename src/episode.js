@@ -17,7 +17,7 @@ const COVER = 1;
 const MAX_TEMPO = 1.15; // above this the narration sounds rushed (Ep13 v1 went out at 1.31x)
 const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp"];
 
-export const DEFAULTS = { width: 576, height: 1024, frames: 97, steps: 18, seed: null, shotsPerScene: 2, voice: "Leda" };
+export const DEFAULTS = { width: 576, height: 1024, frames: 97, steps: 18, seed: null, shotsPerScene: 2, voice: "Leda", allowTextOnly: false };
 
 // ------------------------------------------------------------------ parsing
 
@@ -220,6 +220,9 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   if (ep.srt) {
     await fsp.mkdir(path.dirname(srtPath), { recursive: true });
     await fsp.writeFile(srtPath, ep.srt.trim() + "\n");
+    // About 44 characters fit on a line at the draft's subtitle size; the series allows two lines per cue.
+    const long = ep.srt.trim().split(/\n\s*\n/).filter((cue) => cue.split("\n").slice(2).reduce((n, l) => n + Math.ceil(l.length / 44), 0) > 2);
+    if (long.length) warnings.push(`${long.length} subtitle cue(s) will wrap to more than two lines; shorten them in the spec.`);
   } else warnings.push("The spec has no subtitles: the draft has none.");
 
   // 2. Narration.
@@ -246,6 +249,13 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   }
 
   // 3. Shots on the GPU, in order. Part 1 of a scene starts from its keyframe; later parts continue from the last frame.
+  // Text-only shots drift (costume, even the child's gender) and break the visual rules (adults' faces), so a scene
+  // without a keyframe is refused unless the run explicitly allows it.
+  const missing = ep.scenes.filter((sc) => !keyframeFor(dirs, sc.number)).map((sc) => sc.number);
+  if (missing.length && !s.allowTextOnly) {
+    throw new Error(`No keyframe for scene ${missing.join(", ")} in images/${ep.id}/ (frame-01.png …). Add them, or allow text-only shots.`);
+  }
+  if (missing.length) warnings.push(`Scene ${missing.join(", ")} rendered from text only: check costume consistency and adults' faces closely.`);
   const { generateVideo, uploadImageToComfy } = deps.generate ? {} : await import("./comfy_client.js");
   const generate = deps.generate ?? generateVideo;
   const upload = deps.upload ?? uploadImageToComfy;
@@ -278,10 +288,21 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   log("assembling the 33 s draft");
   const work = path.join(dirs.final, ".work");
   await fsp.mkdir(work, { recursive: true });
-  let cover = firstExisting(dirs.images, ["cover"]);
-  if (!cover) cover = await runFfmpeg(["-v", "error", "-y", "-ss", "0.5", "-i", shots[0], "-frames:v", "1", "-update", "1", path.join(work, "cover.png")]).then(() => path.join(work, "cover.png"));
+  const cover = firstExisting(dirs.images, ["cover"]);
   const coverHd = path.join(work, "cover_hd.png");
-  await runFfmpeg(["-v", "error", "-y", "-i", cover, "-vf", "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920", "-frames:v", "1", "-update", "1", coverHd]);
+  if (cover) {
+    // A prepared cover keeps its own layout (empty top for the title).
+    await runFfmpeg(["-v", "error", "-y", "-i", cover, "-vf", "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920", "-frames:v", "1", "-update", "1", coverHd]);
+  } else {
+    // A frame from the first shot has the face where the title goes: move the picture down 24 % over a blurred copy,
+    // so the title sits over the blur and never over the eyes.
+    warnings.push(`No images/${ep.id}/cover.png: the cover is a frame of the first shot moved down under the title. A prepared cover with an empty top looks better.`);
+    const frame = path.join(work, "frame.png");
+    await runFfmpeg(["-v", "error", "-y", "-ss", "0.5", "-i", shots[0], "-frames:v", "1", "-update", "1", frame]);
+    await runFfmpeg(["-v", "error", "-y", "-i", frame, "-filter_complex",
+      "[0:v]scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,split[a][b];[a]gblur=sigma=40,eq=brightness=-0.08[bg];[b]scale=1080:-2[fg];[bg][fg]overlay=0:460",
+      "-frames:v", "1", "-update", "1", coverHd]);
+  }
   const card = await (deps.titleCard ?? titleCard)(ep.coverTitle, path.join(work, "title.png"));
   if (!card) warnings.push("Title card could not be drawn (Python with Pillow and the Comfortaa font are needed); the cover has no title.");
   const thumb = path.join(dirs.final, `${ep.id}_thumbnail.png`);
@@ -306,7 +327,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   fc += `[c][st]concat=n=2:v=1:a=0[v0];`;
   const srtArg = srtPath.replace(/\\/g, "/").replace(/:/g, "\\:");
   fc += fs.existsSync(srtPath)
-    ? `[v0]subtitles='${srtArg}':force_style='FontName=DejaVu Sans,FontSize=13,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=35,MarginL=8,MarginR=8'[v]`
+    ? `[v0]subtitles='${srtArg}':force_style='FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1.6,Alignment=2,MarginV=32,MarginL=6,MarginR=6'[v]`
     : `[v0]null[v]`;
   if (hasVo) fc += `;[${n + 1}:a]atempo=${tempo.toFixed(3)},adelay=500|500,apad,atrim=0:${FILM},afade=t=out:st=${FILM - 0.6}:d=0.6[a]`;
   else fc += `;anullsrc=r=48000:cl=stereo,atrim=0:${FILM}[a]`;

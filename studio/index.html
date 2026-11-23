@@ -362,6 +362,7 @@
             </select></label>
           <label>Steps <input type="number" id="ep-steps" value="18" min="8" max="50" style="width: 60px;"></label>
         </div>
+        <label style="font-size: 0.72rem;"><input type="checkbox" id="ep-textonly"> Izinkan scene tanpa keyframe (teks saja: karakter bisa berubah, wajah orang dewasa bisa muncul)</label>
         <select id="ep-select" style="display: none;" onchange="showPreview()"></select>
         <div id="ep-preview"></div>
         <div id="ep-actions" style="display: none; gap: 6px; flex-wrap: wrap;">
@@ -473,6 +474,7 @@
       frames: Number(document.getElementById('ep-frames').value),
       shotsPerScene: Number(document.getElementById('ep-shots').value),
       steps: Number(document.getElementById('ep-steps').value),
+      allowTextOnly: document.getElementById('ep-textonly').checked,
     });
 
     async function parseSpecFile() {

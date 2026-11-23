@@ -79,7 +79,7 @@ test("a full run produces a 33 s 1080x1920 draft with narration, thumbnail and n
     titleCard: async (title, out) => (ffmpeg(["-f", "lavfi", "-i", "color=c=black@0.0:s=1080x1920,format=rgba", "-frames:v", "1", out]), out),
   };
   const lines = [];
-  const settings = { frames: 49, shotsPerScene: 2, width: 288, height: 512 };
+  const settings = { frames: 49, shotsPerScene: 2, width: 288, height: 512, allowTextOnly: true };
   const r = await ep.runEpisode(e, settings, { onLog: (l) => lines.push(l), deps });
   assert.equal(renders, 8);
   assert.equal(uploads.length, 4, "one keyframe-less first shot per scene uses no upload, later parts chain from the previous shot");
@@ -109,4 +109,10 @@ test("agent prompt points at the fact check, the reviewed spec and the loopback 
   assert.deepEqual(pipeline.summarize('{"type":"assistant","message":{"content":[{"type":"text","text":"Checking Bukhari 4900"},{"type":"tool_use","name":"WebFetch","input":{"url":"https://en.tohed.com/hadith/bukhari/4900"}}]}}'),
     ["agent: Checking Bukhari 4900", "agent → WebFetch: https://en.tohed.com/hadith/bukhari/4900"]);
   assert.deepEqual(pipeline.summarize("not json"), []);
+});
+
+test("starting without keyframes for every scene is refused unless text-only is allowed", async () => {
+  const one = SPEC.slice(SPEC.indexOf("### Episode 12"));
+  await assert.rejects(pipeline.start({ markdown: one, mode: "auto", settings: {} }), (e) => e.status === 400 && /keyframe/.test(e.message));
+  await assert.rejects(pipeline.start({ markdown: one, mode: "agent", settings: {} }), (e) => e.status === 400);
 });

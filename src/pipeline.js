@@ -53,6 +53,11 @@ export async function start(body) {
   const mode = body.mode === "agent" ? "agent" : "auto";
   const settings = sanitize(body.settings);
 
+  // Refuse before anything runs: text-only shots drift and break the visual rules.
+  const p = preview(ep, settings);
+  if (p.keyframes < p.scenes && !settings.allowTextOnly) {
+    throw Object.assign(new Error(`Only ${p.keyframes} of ${p.scenes} scenes have a keyframe in images/${ep.id}/ (frame-01.png …). Add them, or allow text-only shots.`), { status: 400 });
+  }
   const dirs = episodeDirs(ep.id);
   await fsp.mkdir(dirs.final, { recursive: true });
   if (!body.specPath) await fsp.writeFile(path.join(dirs.final, "spec.md"), markdown);
@@ -89,6 +94,7 @@ function sanitize(raw = {}) {
     shotsPerScene: n(raw.shotsPerScene, 1, 4, DEFAULTS.shotsPerScene),
     seed: raw.seed === null || raw.seed === "" || raw.seed === undefined ? null : n(raw.seed, 0, 2 ** 31, null),
     voice: /^[A-Za-z]{3,20}$/.test(raw.voice ?? "") ? raw.voice : DEFAULTS.voice,
+    allowTextOnly: raw.allowTextOnly === true,
   };
 }
 
