@@ -129,25 +129,15 @@ Kondisi nyata ternyata lebih sederhana dari rancangan di atas: **GaiaNAS adalah 
 | Keamanan studio | ✅ | Login wajib (user `studio`, password di `~/.config/minimax-studio/password`), endpoint file dikunci ke folder produksi, tanpa CORS. Sebelumnya `/api/video` bisa membaca file apa pun di disk |
 | MiniMax H3 di Node B (ROCm, RX 9060 XT) | ✅ | `comfyui.service` di `127.0.0.1:8188`, model lengkap, 4 shot sudah dirender 21 Nov (±9 menit per shot) |
 | Node A → NAS | ⚠️ sebagian | `scripts/sync_to_nas.ps1` menyalin audio/keyframe lewat SSH (sudah diuji). Drive `Z:` belum bisa: Windows 11 mewajibkan SMB signing, sedangkan share hanya mengizinkan tamu |
-| `minimax.upgradingu.com` (Langkah 3) | ⏳ menunggu izin | Rencana: tambah ingress di tunnel `screener` → `http://127.0.0.1:8795`, `cloudflared tunnel route dns`, restart tunnel |
-| Cloudflare Access (Langkah 3.5) | ⏳ manual | Hanya bisa lewat dashboard Cloudflare. Login aplikasi sudah aktif, Access menjadi lapisan kedua |
+| `minimax.upgradingu.com` (Langkah 3) | ✅ | Ingress di tunnel `screener` → `http://127.0.0.1:8795`, CNAME dibuat 23 Nov. Backup config: `~/.cloudflared/screener.yml.bak-20261123-minimax` |
+| Cloudflare Access (Langkah 3.5) | ✅ | Subdomain langsung tercakup aplikasi Access `upgradingu` yang sama dengan `screener`/`godeye`/`gaianas` (login Google). Pastikan kebijakannya hanya mengizinkan email pribadi Anda. Setelah Access, studio masih meminta login `studio` |
 | Nginx Proxy Manager (Langkah 4) | ✖ tidak dipakai | Cloudflare Tunnel sudah ada dan tidak perlu membuka port router |
 
 ### Langkah yang tersisa
 
-1. **Publikasi domain** (di server, mengubah DNS publik dan me-restart tunnel yang juga melayani `llm`, `screener`,
-   `godeye`, `gaianas` selama beberapa detik):
-   ```bash
-   cp ~/.cloudflared/screener.yml ~/.cloudflared/screener.yml.bak-minimax
-   # sisipkan sebelum "- service: http_status:404":
-   #   - hostname: minimax.upgradingu.com
-   #     service: http://127.0.0.1:8795
-   cloudflared tunnel --config ~/.cloudflared/screener.yml ingress validate
-   cloudflared tunnel route dns screener minimax.upgradingu.com
-   systemctl --user restart screener-tunnel
-   ```
-2. **Cloudflare Access** untuk `minimax.upgradingu.com` (Zero Trust → Access → Applications), login email Anda.
-3. **Drive Z: di Windows**: sekali di server `sudo smbpasswd -a bakhtiarrifai`, lalu di Windows
+1. **Cek kebijakan Access** di Zero Trust → Access → Applications: aplikasi yang mencakup `*.upgradingu.com` hanya
+   mengizinkan email pribadi Anda.
+2. **Drive Z: di Windows**: sekali di server `sudo smbpasswd -a bakhtiarrifai`, lalu di Windows
    `scripts\map_nas_drive.bat`. Setelah itu `start_comfyui_nas.bat` menyimpan audio/gambar ComfyUI langsung ke NAS.
 
 ### Spec produksi konten
