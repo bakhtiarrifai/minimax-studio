@@ -340,6 +340,41 @@
 
     <!-- Right Panel: Film Project & Assets -->
     <div class="panel">
+      <h2>Episode dari Spec (.md)</h2>
+      <div style="font-size: 0.78rem; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+        <input type="file" id="spec-file" accept=".md,text/markdown" onchange="parseSpecFile()">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+          <label>Resolusi
+            <select id="ep-resolution" onchange="parseSpecFile()">
+              <option value="576x1024" selected>576x1024 (terbukti)</option>
+              <option value="768x1344">768x1344 (lebih lama)</option>
+            </select></label>
+          <label>Frame per shot
+            <select id="ep-frames" onchange="parseSpecFile()">
+              <option value="49">49 (~2 dtk)</option>
+              <option value="73">73 (~3 dtk)</option>
+              <option value="97" selected>97 (~4 dtk)</option>
+              <option value="124">124 (~5,2 dtk)</option>
+            </select></label>
+          <label>Shot per scene
+            <select id="ep-shots" onchange="parseSpecFile()">
+              <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option>
+            </select></label>
+          <label>Steps <input type="number" id="ep-steps" value="18" min="8" max="50" style="width: 60px;"></label>
+        </div>
+        <select id="ep-select" style="display: none;" onchange="showPreview()"></select>
+        <div id="ep-preview"></div>
+        <div id="ep-actions" style="display: none; gap: 6px; flex-wrap: wrap;">
+          <button class="btn" onclick="startEpisode('auto')" style="padding: 5px 10px; font-size: 0.78rem;">▶ Mulai otomatis</button>
+          <button class="btn btn-secondary" onclick="startEpisode('agent')" style="padding: 5px 10px; font-size: 0.78rem;">🤖 Mulai dengan agen Claude</button>
+        </div>
+        <div style="color: var(--text-muted); font-size: 0.72rem;">
+          Otomatis: narasi Leda → render shot H3 → draf 33 dtk di <i>final/</i>. Cek fakta tetap Anda.
+          Agen: Claude cek fakta hadits dulu (factcheck.md), lalu menjalankan mode otomatis dan mereview hasilnya.
+        </div>
+        <div id="ep-runs" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
       <h2>Project Assets</h2>
       <div id="jobs-list" style="display: flex; flex-direction: column; gap: 10px;">
         <span style="font-size: 0.8rem; color: var(--text-muted);">No shots rendered yet. Click "Generate Shot" to produce your first clip.</span>
@@ -428,6 +463,95 @@
         }
         list.appendChild(row);
       });
+    }
+
+    let specText = null;
+    let specEpisodes = [];
+
+    const epSettings = () => ({
+      resolution: document.getElementById('ep-resolution').value,
+      frames: Number(document.getElementById('ep-frames').value),
+      shotsPerScene: Number(document.getElementById('ep-shots').value),
+      steps: Number(document.getElementById('ep-steps').value),
+    });
+
+    async function parseSpecFile() {
+      const file = document.getElementById('spec-file').files[0];
+      if (!file) return;
+      specText = await file.text();
+      const box = document.getElementById('ep-preview');
+      try {
+        const res = await fetch('/api/episodes/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markdown: specText, settings: epSettings() }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+        specEpisodes = data.episodes;
+        const sel = document.getElementById('ep-select');
+        const keep = sel.value;
+        sel.innerHTML = specEpisodes.map((e) => `<option value="${esc(e.id)}">${esc(e.id)} · ${esc(e.coverTitle)}</option>`).join('');
+        if (specEpisodes.some((e) => e.id === keep)) sel.value = keep;
+        sel.style.display = specEpisodes.length > 1 ? 'block' : 'none';
+        showPreview();
+      } catch (err) {
+        box.innerHTML = `<span style="color: var(--warning);">${esc(err.message)}</span>`;
+        document.getElementById('ep-actions').style.display = 'none';
+      }
+    }
+
+    function showPreview() {
+      const e = specEpisodes.find((x) => x.id === document.getElementById('ep-select').value) || specEpisodes[0];
+      if (!e) return;
+      const todo = e.shots.filter((s) => !s.done).length;
+      const minutes = Math.round(todo * (e.settings.frames / 49) * 7.5);
+      document.getElementById('ep-preview').innerHTML = `
+        <div style="background: #131b26; padding: 8px; border-radius: 6px; line-height: 1.5;">
+          <b>${esc(e.heading)}</b><br>
+          Judul cover: ${esc(e.coverTitle)}<br>
+          Sumber: ${esc(e.sources || '—')}<br>
+          ${e.scenes} scene × ${e.settings.shotsPerScene} shot = ${e.shots.length} shot (${todo} belum dirender) · footage ~${e.footageSeconds} dtk<br>
+          Keyframe di images/${esc(e.id)}/: ${e.keyframes} dari ${e.scenes} ${e.keyframes < e.scenes ? '<span style="color: var(--warning);">(scene tanpa keyframe dirender dari teks saja)</span>' : ''}<br>
+          Narasi: ${e.narration.existing ? 'pakai audio yang sudah ada' : `${e.narration.words} kata → Google TTS Leda`} · Subtitle: ${e.subtitles ? 'ada' : '<span style="color: var(--warning);">tidak ada</span>'}<br>
+          Perkiraan waktu GPU: ±${minutes} menit
+        </div>`;
+      document.getElementById('ep-actions').style.display = 'flex';
+    }
+
+    async function startEpisode(mode) {
+      const id = document.getElementById('ep-select').value || specEpisodes[0]?.id;
+      if (!specText || !id) return;
+      const what = mode === 'agent' ? 'Claude akan cek fakta lalu menjalankan produksi' : 'Produksi otomatis akan memakai GPU server';
+      if (!confirm(`${what} untuk ${id}. Lanjutkan?`)) return;
+      const res = await fetch('/api/episodes/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markdown: specText, episodeId: id, mode, settings: epSettings() }) });
+      const data = await res.json();
+      if (!res.ok) return alert(data.error || res.status);
+      loadRuns();
+    }
+
+    async function stopEpisode(id) {
+      if (!confirm(`Hentikan ${id}?`)) return;
+      const res = await fetch(`/api/episodes/${encodeURIComponent(id)}/stop`, { method: 'POST' });
+      const data = await res.json();
+      alert(data.note || data.error);
+      loadRuns();
+    }
+
+    async function loadRuns() {
+      try {
+        const { runs = [] } = await (await fetch('/api/episodes')).json();
+        const box = document.getElementById('ep-runs');
+        box.innerHTML = runs.slice(0, 6).map((r) => {
+          const color = { running: 'var(--warning)', done: 'var(--success)' }[r.status] || 'var(--text-muted)';
+          const tail = (r.log || []).slice(-6).map(esc).join('<br>');
+          const warn = (r.warnings || []).map((w) => `⚠ ${esc(w)}`).join('<br>');
+          return `<div style="background: #131b26; padding: 8px; border-radius: 6px;">
+            <b>${esc(r.id)}</b> · ${r.mode === 'agent' ? 'agen' : 'otomatis'} · <span style="color: ${color};">${esc(r.status)}</span>
+            ${r.status === 'running' ? `<button class="btn btn-secondary" style="padding: 1px 6px; font-size: 0.7rem;" onclick="stopEpisode('${esc(r.id)}')">Stop</button>` : ''}
+            ${r.output ? `<button class="btn btn-secondary" style="padding: 1px 6px; font-size: 0.7rem;" onclick="playVideo(${esc(JSON.stringify(r.output))})">Putar draf</button>` : ''}
+            ${r.error ? `<div style="color: var(--warning);">${esc(r.error)}</div>` : ''}
+            ${warn ? `<div style="color: var(--warning); margin-top: 4px;">${warn}</div>` : ''}
+            <div style="font-family: monospace; font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; word-break: break-word;">${tail}</div>
+          </div>`;
+        }).join('');
+      } catch {}
     }
 
     async function loadAssets() {
@@ -639,6 +763,8 @@
     loadTechniques();
     loadScenes();
     loadAssets();
+    loadRuns();
+    setInterval(loadRuns, 5000);
     setInterval(loadStatus, 5000);
     setInterval(loadScenes, 10000);
     setInterval(loadAssets, 15000);

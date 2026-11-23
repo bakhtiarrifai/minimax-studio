@@ -26,12 +26,12 @@ function getFfmpegPath() {
   return "ffmpeg";
 }
 
-const FFMPEG_BIN = getFfmpegPath();
+export const FFMPEG_BIN = getFfmpegPath();
 
 /**
  * Executes an FFmpeg command with promise wrapping.
  */
-function runFfmpeg(args) {
+export function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     execFile(FFMPEG_BIN, args, (err, stdout, stderr) => {
       if (err) {

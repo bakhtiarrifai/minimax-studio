@@ -10,6 +10,7 @@ import { TECHNIQUES } from "./techniques.js";
 import { generateVideo, uploadImageToComfy } from "./comfy_client.js";
 import { concatenateClips, mixAudio } from "./cut.js";
 import { authorized, pathGuard, safeName } from "./security.js";
+import * as pipeline from "./pipeline.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STUDIO_DIR = path.resolve(__dirname, "../studio");
@@ -203,6 +204,27 @@ export function createStudioServer({ auth = null } = {}) {
         return json(200, { configured: true, root: ASSETS_ROOT, assets });
       }
 
+      // 7.4 API: Episode from an uploaded spec .md (preview, start auto/agent, status, wait, stop)
+      if (pathname === "/api/episodes/parse" && req.method === "POST") {
+        const body = await parseJsonBody(req, 600 * 1024);
+        return json(200, { episodes: pipeline.parseUpload(body.markdown ?? "", body.settings) });
+      }
+      if (pathname === "/api/episodes/start" && req.method === "POST") {
+        return json(202, { run: await pipeline.start(await parseJsonBody(req, 600 * 1024)) });
+      }
+      if (pathname === "/api/episodes" && req.method === "GET") {
+        return json(200, { runs: await pipeline.list() });
+      }
+      const ep = /^\/api\/episodes\/([A-Za-z0-9._-]+)(\/wait|\/stop)?$/.exec(pathname);
+      if (ep) {
+        if (!ep[2] && req.method === "GET") {
+          const run = await pipeline.get(ep[1]);
+          return run ? json(200, { run }) : json(404, { error: "No run for " + ep[1] });
+        }
+        if (ep[2] === "/wait" && req.method === "GET") return json(200, { run: await pipeline.wait(ep[1], url.searchParams.get("timeout")) });
+        if (ep[2] === "/stop" && req.method === "POST") return json(200, pipeline.stop(ep[1]));
+      }
+
       // 8. Serve static Web Studio UI
       const relPath = pathname === "/" ? "index.html" : pathname.replace(/^\//, "");
       const fullPath = path.resolve(STUDIO_DIR, relPath);
@@ -252,12 +274,12 @@ async function listFiles(dir, exts, recursive) {
   return out;
 }
 
-function parseJsonBody(req) {
+function parseJsonBody(req, limit = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let data = "";
     req.on("data", (chunk) => {
       data += chunk;
-      if (data.length > MAX_BODY) {
+      if (data.length > limit) {
         reject(Object.assign(new Error("Request body too large"), { status: 413 }));
         req.destroy();
       }
