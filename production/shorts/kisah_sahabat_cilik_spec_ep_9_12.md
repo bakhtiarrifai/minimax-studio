@@ -58,7 +58,7 @@
 1
 00:00:00,000 --> 00:00:05,500
 Have you ever been so hungry
-that your hand wandered everywhere at mealtime?
+your hand went all over the plate?
 
 2
 00:00:05,500 --> 00:00:12,500
@@ -72,8 +72,8 @@ all over the shared platter.
 
 4
 00:00:19,500 --> 00:00:26,500
-The Prophet (PBUH) gently said: Say Bismillah,
-eat with your right hand, and eat what is nearest to you.
+The Prophet (PBUH): Say Bismillah,
+eat with your right hand, from what's near.
 
 5
 00:00:26,500 --> 00:00:33,000
@@ -176,18 +176,18 @@ with super pretty colors?
 
 2
 00:00:05,500 --> 00:00:12,500
-My name is Ummu Khalid, and I had just arrived
-in Medina by ship from a faraway land.
+I'm Ummu Khalid. I had just sailed
+to Medina from a faraway land.
 
 3
 00:00:12,500 --> 00:00:19,500
-I was brought to the Prophet (PBUH),
-and he picked a little black dress with pretty markings.
+I was brought to the Prophet (PBUH).
+He picked a black dress with pretty marks.
 
 4
 00:00:19,500 --> 00:00:26,500
-He placed it on me, saying "Sanah, sanah!"
-meaning wonderful, and prayed for my long life.
+He dressed me, saying "Sanah!" (lovely),
+and prayed for my long life.
 
 5
 00:00:26,500 --> 00:00:33,000
@@ -295,18 +295,18 @@ I sat in a gathering beside my father.
 
 3
 00:00:12,500 --> 00:00:19,500
-The Prophet (PBUH) asked about a tree whose leaves
-never fall, just like a true believer.
+The Prophet (PBUH) asked: which tree
+never drops its leaves, like a believer?
 
 4
 00:00:19,500 --> 00:00:26,500
-I knew it was the date palm, yet I stayed quiet.
-The Prophet (PBUH) then said: It is the date palm!
+I knew: the date palm! But I kept quiet.
+Then he said: "It is the date palm."
 
 5
 00:00:26,500 --> 00:00:33,000
-My father said he wished I had spoken up! Be polite,
-but don't be afraid to share what you know.
+Father wished I had spoken up! Be polite,
+but don't fear sharing what you know.
 
 ```
 
@@ -404,13 +404,13 @@ only for people not to believe you at first?
 
 2
 00:00:05,500 --> 00:00:12,500
-My name is Zaid bin Arqam. During a journey,
-I overheard someone trying to divide the people of Medina.
+I'm Zaid bin Arqam. On a journey, I heard
+a man trying to divide Medina's people.
 
 3
 00:00:12,500 --> 00:00:19,500
-I told my uncle, and it reached the Prophet (PBUH),
-but the man denied it, leaving me sad at home.
+I told my uncle; it reached the Prophet.
+The man denied it. I stayed home, sad.
 
 4
 00:00:19,500 --> 00:00:26,500
@@ -420,7 +420,7 @@ that every word I spoke was completely true!
 5
 00:00:26,500 --> 00:00:33,000
 Never be afraid to tell the truth,
-because Allah always stands with the truthful!
+for Allah stands with the truthful!
 
 ```
 
