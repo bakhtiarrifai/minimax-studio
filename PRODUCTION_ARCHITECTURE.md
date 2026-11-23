@@ -106,13 +106,35 @@ Jika Anda menggunakan Nginx Proxy Manager di jaringan CosmosHub router Anda:
 
 ## 4. Alur Kerja Produksi Jarak Jauh (Remote Workflow)
 
-Setelah semuanya terhubung, alur kerja Anda dari luar rumah adalah sebagai berikut:
+### 4.1 Satu episode dari file spec (.md)
 
-1. **Akses Studio:** Anda membuka `https://minimax.upgradingu.com` dari HP/Laptop.
-2. **Audio Check:** Anda mengecek apakah file audio dari Node A (Windows) sudah ada. Karena Anda sudah mem-_mount_ NAS ke Web Studio, Web Studio akan menampilkan daftar audio di direktori `/mnt/gaianas/audio`.
-3. **Mulai Render:** Anda memasukkan *prompt* teks dan memilih file referensi audio.
-4. **Eksekusi:** Ubuntu Server akan membaca aset dari NAS, memproses video menggunakan GPU AMD, dan menyimpan video hasilnya kembali ke NAS (`/mnt/gaianas/videos`).
-5. **Review Akhir:** Anda dapat memutar hasilnya langsung di *browser* (melalui Web Studio) atau memicu fungsi `h3_cut` untuk merender episode final. Hasil final bisa diakses atau diunduh dari NAS Anda kapan saja.
+Cara utama: upload **spec episode**, bukan dokumen ini. Spec episode berisi naskah, narasi, subtitle, judul cover, dan
+storyboard JSON per scene. Contohnya `production/shorts/kisah_sahabat_cilik_spec_ep_9_12.md` (empat episode dalam
+satu file) atau spec satu episode dari brief Gemini (`production/shorts/gemini_brief_sirah_next_episodes.md`).
+
+1. Buka `https://minimax.upgradingu.com`, lalu login sekali lewat Cloudflare.
+2. (Opsional) Kirim keyframe ke `images/<episode>/frame-01.png` … dan cover ke `images/<episode>/cover.png`
+   (`scripts\sync_to_nas.ps1` dari Windows). Scene tanpa keyframe dirender dari teks saja.
+3. Di panel **Episode dari Spec (.md)**: pilih file, pilih episode, atur resolusi / frame per shot / shot per scene,
+   lalu periksa pratinjau (jumlah shot, keyframe, narasi, subtitle, perkiraan waktu GPU).
+4. Pilih salah satu:
+   - **▶ Mulai otomatis**: narasi Google TTS Leda → shot MiniMax H3 berurutan → cover + judul seri + subtitle →
+     draf 33 detik `final/<episode>/<episode>_1080p_draft.mp4`, thumbnail, dan `PRODUCTION.md` berisi checklist.
+     Cek fakta tetap dilakukan Anda.
+   - **🤖 Mulai dengan agen Claude**: Claude Code di server mengecek fakta hadits dulu (`factcheck.md`), menulis
+     `spec.reviewed.md`, lalu menjalankan mode otomatis dan menambahkan reviewnya ke `PRODUCTION.md`. Memakai kuota
+     langganan Claude. Tidak memakai layanan berbayar lain.
+5. Pantau log di panel yang sama, lalu putar draf dari browser. Satu run GPU berjalan pada satu waktu. Tombol Stop
+   menghentikan run setelah shot yang sedang dirender. Run yang dijalankan ulang memakai lagi shot yang sudah ada.
+6. Sebelum posting: jalankan checklist di `PRODUCTION.md` (`CONTENT_PRODUCTION_SPEC.md` bagian 6), terutama
+   mendengarkan audionya.
+
+### 4.2 Shot satuan
+
+Untuk mencoba atau memperbaiki satu adegan: tulis prompt di **Scene Composer**, pilih gambar dari *Shared Assets*
+sebagai frame pertama, render, lalu gabungkan dengan **Export Film**. Soundtrack bisa dipilih dari `audio/`. Semua
+hasil tersimpan di NAS (`videos/` dan `final/`).
+
 ---
 
 ## 5. Status Implementasi (23 November 2026)
