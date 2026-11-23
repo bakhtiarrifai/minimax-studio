@@ -56,7 +56,8 @@ disesuaikan untuk pipeline multi-node di `PRODUCTION_ARCHITECTURE.md`.
 
 ## 4. Pipeline MiniMax (multi-node)
 
-Penyimpanan bersama: **GaiaNAS** `production_assets/` (di server: `/mnt/gaia/production_assets`, di Windows: `Z:\`).
+Penyimpanan bersama: **GaiaNAS** `production_assets/` (di server: `/mnt/gaia/production_assets`). Dari Windows, kirim
+hasil Node A dengan `scripts\sync_to_nas.ps1 -Episode <ep> [-Extra "file1;file2"]` (lewat SSH).
 
 | Tahap | Node | Alat | Output di NAS |
 |---|---|---|---|
