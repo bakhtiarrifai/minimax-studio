@@ -134,13 +134,18 @@ MCP ini bekerja lewat SSH ke alamat loopback studio, jadi kunci SSH adalah satu-
 Contoh permintaan ke Claude: *"Pakai minimax-remote: preview spec ~/specs/ep15.md, unggah keyframe di ~/specs/ep15/
 sebagai images, lalu mulai ep15_mahmud mode agent."*
 
-### Audio worker di PC Windows
+### Audio worker di PC Windows (on-demand)
 
-1. `start_comfyui_local.bat` (ComfyUI dengan Stable Audio Open: `checkpoints/stable-audio-open-1.0.safetensors`,
-   `text_encoders/t5_base.safetensors`).
-2. `start_audio_worker.bat`: mengecek antrean server tiap 30 detik. Narasi memakai key Google di
-   `~/.flow-studio/gemini-key`. Kalau ComfyUI belum jalan, worker menunggu 10 menit lalu mengirim narasi saja.
-3. Backsound tersendiri: `node scripts/generate_bgm.mjs --out bgm.flac --seconds 36`.
+- **Worker** (`start_audio_worker.bat`, ringan: satu proses Node yang mengecek antrean server tiap 30 detik lewat
+  SSH) harus menyala supaya PC bisa menerima pekerjaan. Kalau produksi dipicu dari **Claude Code di PC ini**
+  (`episode_start` di `minimax-remote`), worker dinyalakan otomatis. Kalau dipicu dari **server, laptop Fedora,
+  atau browser**, worker harus sudah jalan, karena server tidak bisa masuk ke PC ini. Nyalakan sekali saat mulai kerja,
+  atau pasang di Task Scheduler saat login.
+- **ComfyUI** (berat: GPU + RAM) **tidak perlu dinyalakan manual**: worker menjalankan `start_comfyui_local.bat`
+  (atau `MINIMAX_COMFY_LAUNCHER`) saat ada pekerjaan audio, lalu mematikannya lagi setelah menganggur
+  `MINIMAX_COMFY_IDLE_MIN` menit (bawaan 10). ComfyUI yang Anda nyalakan sendiri tidak ikut dimatikan.
+- Narasi memakai key Google di `~/.flow-studio/gemini-key`. Model backsound: `checkpoints/stable-audio-open-1.0.safetensors`
+  dan `text_encoders/t5_base.safetensors`. Backsound tersendiri: `node scripts/generate_bgm.mjs --out bgm.flac`.
 
 Lisensi Stable Audio Open (Stability AI Community License): gratis di bawah US$1 juta pendapatan per tahun. Penggunaan
 komersial wajib mendaftar gratis di https://stability.ai/community-license dan mencantumkan "Powered by Stability AI"

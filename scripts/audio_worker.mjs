@@ -16,13 +16,21 @@ process.env.MINIMAX_REMOTE_HOST ??= "bakhtiar-server-ts";
 const { api, upload, writeRemote } = await import("../src/remote.js");
 const { speak } = await import("../src/episode.js");
 const { generateBgm, BGM_CREDIT } = await import("../src/bgm.js");
+const { ensureComfy, stopComfy, WORKER_PID } = await import("../src/local_services.js");
+// ComfyUI is started for a job and stopped again after this many idle minutes, if this worker started it.
+const IDLE_MIN = Number(process.env.MINIMAX_COMFY_IDLE_MIN ?? 10);
+let startedComfy = false;
+let lastJobAt = 0;
 
 const { values: a } = parseArgs({ options: { once: { type: "boolean", default: false }, interval: { type: "string", default: "30" } } });
-const log = (m) => console.log(`${new Date().toLocaleTimeString("en-GB")} ${m}`);
+const log = (m) => console.log(`${new Date().toISOString().slice(11, 19)}Z ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function bgmWithRetry(job, file) {
-  // ComfyUI may still be starting; give it ten minutes before delivering the narration alone.
+  const state = await ensureComfy({ log });
+  if (state === "started") startedComfy = true;
+  else if (state !== "running") log(`  ComfyUI: ${state}`);
+  // ComfyUI may still be loading; give it ten minutes before delivering the narration alone.
   for (let i = 0; i < 20; i++) {
     try {
       const r = await generateBgm({ seconds: Math.min(47, job.bgm?.seconds ?? 36), seed: job.bgm?.seed, prompt: job.bgm?.prompt ?? undefined, name: job.id });
@@ -70,11 +78,13 @@ async function handle(job) {
   }
 }
 
-log(`audio worker: polling ${process.env.MINIMAX_REMOTE_HOST} every ${a.interval} s${a.once ? " (once)" : ""}`);
+fs.writeFileSync(WORKER_PID, String(process.pid));
+log(`audio worker: polling ${process.env.MINIMAX_REMOTE_HOST} every ${a.interval} s${a.once ? " (once)" : ""}; ComfyUI starts on demand`);
 for (;;) {
   try {
     const { jobs = [] } = await api("GET", "/api/audio-jobs");
     for (const job of jobs) {
+      lastJobAt = Date.now();
       try {
         await handle(job);
       } catch (err) {
@@ -83,6 +93,11 @@ for (;;) {
     }
   } catch (err) {
     log(`cannot reach the studio: ${err.message}`);
+  }
+  if (startedComfy && Date.now() - lastJobAt > IDLE_MIN * 60_000) {
+    log(`ComfyUI idle for ${IDLE_MIN} min: stopping it to free the GPU and memory`);
+    await stopComfy();
+    startedComfy = false;
   }
   if (a.once) break;
   await sleep(Number(a.interval) * 1000);

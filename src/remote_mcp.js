@@ -9,6 +9,7 @@ import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import { api, remoteHost, upload } from "./remote.js";
+import { ensureWorker } from "./local_services.js";
 
 const ASSETS = process.env.MINIMAX_REMOTE_ASSETS || "/mnt/gaia/production_assets";
 const server = new McpServer({ name: "minimax-remote", version: "0.1.0" });
@@ -63,7 +64,11 @@ server.registerTool(
       "Start producing one episode from a local spec .md on the Ubuntu node. mode 'auto': narration and backsound from the Windows PC audio worker, MiniMax H3 shots, 33 s draft in final/<episode>/. mode 'agent': Claude Code on the server checks the facts first, then runs 'auto' and reviews it. Uses the GPU for one to several hours; confirm with the user first.",
     inputSchema: z.object({ spec_path: z.string(), episode_id: episodeId, mode: z.enum(["auto", "agent"]).default("auto"), settings }),
   },
-  guard(async ({ spec_path, episode_id, mode, settings: s }) => (await api("POST", "/api/episodes/start", { markdown: readSpec(spec_path), episodeId: episode_id, mode, settings: s ?? {} })).run),
+  guard(async ({ spec_path, episode_id, mode, settings: s }) => {
+    const { run } = await api("POST", "/api/episodes/start", { markdown: readSpec(spec_path), episodeId: episode_id, mode, settings: s ?? {} });
+    // Triggered from the Windows PC: make sure its audio worker is up (it starts ComfyUI itself when a job arrives).
+    return { ...run, audioWorker: remoteHost() ? ensureWorker() : "not on this machine" };
+  }),
 );
 
 server.registerTool(
