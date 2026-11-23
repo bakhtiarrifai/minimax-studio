@@ -147,6 +147,12 @@ sebagai images, lalu mulai ep15_mahmud mode agent."*
 - Narasi memakai key Google di `~/.flow-studio/gemini-key`. Model backsound: `checkpoints/stable-audio-open-1.0.safetensors`
   dan `text_encoders/t5_base.safetensors`. Backsound tersendiri: `node scripts/generate_bgm.mjs --out bgm.flac`.
 
+**TTS lokal lain (bukan untuk seri berbahasa Indonesia):** Kokoro-82M (ONNX) di Python ComfyUI, berjalan di CPU
+(±2,6 detik untuk 7 detik suara). Tidak ada suara bahasa Indonesia; tersedia Inggris (Amerika dan British), Jepang,
+Mandarin, Spanyol, Prancis, Hindi, Italia, Portugis. Model di `ComfyUI/models/tts/kokoro/`; eSpeak NG 1.52 terpasang
+di sistem. Contoh: `python -I scripts/kokoro_tts.py --voice af_heart --text "..." --out narasi_en.wav`
+(`--list-voices` untuk daftar suara). Seri "Kisah Sahabat Cilik" tetap memakai Google TTS Leda.
+
 Lisensi Stable Audio Open (Stability AI Community License): gratis di bawah US$1 juta pendapatan per tahun. Penggunaan
 komersial wajib mendaftar gratis di https://stability.ai/community-license dan mencantumkan "Powered by Stability AI"
 (sudah ditulis otomatis di `PRODUCTION.md`).
