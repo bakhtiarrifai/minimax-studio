@@ -365,8 +365,8 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   const bgChain = `aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,loudnorm=I=-20:TP=-2,atrim=0:${FILM},afade=t=in:d=0.5`;
   const voChain = `atempo=${tempo.toFixed(3)},adelay=500|500,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,apad,atrim=0:${FILM}`;
   if (hasVo && bgm) {
-    // Backsound about 30 % under the narration, ducked further while the narration speaks (Ep14 / shorts kit levels).
-    fc += `;[${voIn}:a]${voChain},asplit[vo][key];[${bgIn}:a]${bgChain},volume=0.45[bg0];[bg0][key]sidechaincompress=threshold=0.08:ratio=3:attack=30:release=400[bg];[vo][bg]amix=inputs=2:normalize=0,alimiter=limit=0.89,${end}[a]`;
+    // Backsound about 6-8 dB under the narration with gentle ducking (shorts kit: at 14 dB under it was inaudible on phones).
+    fc += `;[${voIn}:a]${voChain},asplit[vo][key];[${bgIn}:a]${bgChain},volume=0.8[bg0];[bg0][key]sidechaincompress=threshold=0.10:ratio=2:attack=30:release=400[bg];[vo][bg]amix=inputs=2:normalize=0,alimiter=limit=0.89,${end}[a]`;
   } else if (hasVo) fc += `;[${voIn}:a]${voChain},${end}[a]`;
   else if (bgm) fc += `;[${bgIn}:a]${bgChain},volume=0.8,${end}[a]`;
   else fc += `;anullsrc=r=48000:cl=stereo,atrim=0:${FILM}[a]`;

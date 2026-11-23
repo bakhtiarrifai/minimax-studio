@@ -104,6 +104,50 @@ Jika Anda menggunakan Nginx Proxy Manager di jaringan CosmosHub router Anda:
 
 ---
 
+## 3.5 Pembagian Peran (ditetapkan 23 November 2026)
+
+| Peran | Mesin | Jalannya |
+|---|---|---|
+| **Video**: MiniMax H3 | bakhtiar-server (RX 9060 XT) | Web Studio `minimax-studio.service` + ComfyUI di server |
+| **Audio**: narasi Leda + backsound Stable Audio Open | PC Windows (RTX 3060) | `start_comfyui_local.bat` + `start_audio_worker.bat` |
+| **Penyimpanan** | GaiaNAS (`/mnt/gaia/production_assets`) | `audio/`, `images/`, `videos/`, `final/` |
+| **Pemicu** | Browser, atau Claude Code di server / PC Windows / laptop Fedora | `minimax.upgradingu.com`, atau MCP `minimax-remote` |
+
+Alur satu episode: pemicu → server menulis `final/<ep>/audio_request.json` dan langsung merender shot → audio worker
+di PC mengambil permintaan itu lewat SSH, membuat `vo_id.wav` + `bgm.flac`, mengunggah ke `audio/<ep>/`, lalu menulis
+`audio_done.json` → server merakit draf 33 detik (backsound ±30 % di bawah narasi, dengan ducking). **Server menunggu
+PC**: kalau PC mati atau worker tidak jalan, run tertahan di "waiting for the PC audio worker" sampai PC menyala.
+Env server: `MINIMAX_AUDIO_FROM=worker`.
+
+### Memicu dari Claude Code
+
+MCP `minimax-remote` (`src/remote_mcp.js`): `studio_status`, `episode_preview`, `episode_start` (mode `auto` / `agent`),
+`episode_status`, `episode_wait`, `episode_stop`, `episodes_list`, `assets_list`, `assets_upload`. Di luar server
+MCP ini bekerja lewat SSH ke alamat loopback studio, jadi kunci SSH adalah satu-satunya kredensial.
+
+| Di mana | Pendaftaran (sekali) |
+|---|---|
+| Server | sudah terdaftar: `claude mcp add --scope user minimax-remote -- node ~/projects/minimax-studio/src/remote_mcp.js` |
+| PC Windows | sudah terdaftar, dengan `-e MINIMAX_REMOTE_HOST=bakhtiar-server-ts` |
+| Laptop Fedora | `git clone https://github.com/bakhtiarrifai/minimax-studio && cd minimax-studio && npm ci`, lalu `claude mcp add --scope user minimax-remote -e MINIMAX_REMOTE_HOST=<nama SSH server di laptop> -- node $PWD/src/remote_mcp.js` |
+
+Contoh permintaan ke Claude: *"Pakai minimax-remote: preview spec ~/specs/ep15.md, unggah keyframe di ~/specs/ep15/
+sebagai images, lalu mulai ep15_mahmud mode agent."*
+
+### Audio worker di PC Windows
+
+1. `start_comfyui_local.bat` (ComfyUI dengan Stable Audio Open: `checkpoints/stable-audio-open-1.0.safetensors`,
+   `text_encoders/t5_base.safetensors`).
+2. `start_audio_worker.bat`: mengecek antrean server tiap 30 detik. Narasi memakai key Google di
+   `~/.flow-studio/gemini-key`. Kalau ComfyUI belum jalan, worker menunggu 10 menit lalu mengirim narasi saja.
+3. Backsound tersendiri: `node scripts/generate_bgm.mjs --out bgm.flac --seconds 36`.
+
+Lisensi Stable Audio Open (Stability AI Community License): gratis di bawah US$1 juta pendapatan per tahun. Penggunaan
+komersial wajib mendaftar gratis di https://stability.ai/community-license dan mencantumkan "Powered by Stability AI"
+(sudah ditulis otomatis di `PRODUCTION.md`).
+
+---
+
 ## 4. Alur Kerja Produksi Jarak Jauh (Remote Workflow)
 
 ### 4.1 Satu episode dari file spec (.md)
