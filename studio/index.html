@@ -362,6 +362,11 @@
             </select></label>
           <label>Steps <input type="number" id="ep-steps" value="18" min="8" max="50" style="width: 60px;"></label>
         </div>
+        <label style="font-size: 0.78rem;">Suara narasi
+          <select id="ep-narration">
+            <option value="google" selected>Leda (Google TTS)</option>
+            <option value="chatterbox">Chatterbox Indonesia, clone Leda (lokal, PC Windows)</option>
+          </select></label>
         <label style="font-size: 0.72rem;"><input type="checkbox" id="ep-textonly"> Izinkan scene tanpa keyframe (teks saja: karakter bisa berubah, wajah orang dewasa bisa muncul)</label>
         <select id="ep-select" style="display: none;" onchange="showPreview()"></select>
         <div id="ep-preview"></div>
@@ -475,6 +480,7 @@
       shotsPerScene: Number(document.getElementById('ep-shots').value),
       steps: Number(document.getElementById('ep-steps').value),
       allowTextOnly: document.getElementById('ep-textonly').checked,
+      narration: document.getElementById('ep-narration').value,
     });
 
     async function parseSpecFile() {

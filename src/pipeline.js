@@ -95,6 +95,7 @@ function sanitize(raw = {}) {
     seed: raw.seed === null || raw.seed === "" || raw.seed === undefined ? null : n(raw.seed, 0, 2 ** 31, null),
     voice: /^[A-Za-z]{3,20}$/.test(raw.voice ?? "") ? raw.voice : DEFAULTS.voice,
     allowTextOnly: raw.allowTextOnly === true,
+    narration: raw.narration === "chatterbox" ? "chatterbox" : "google",
   };
 }
 

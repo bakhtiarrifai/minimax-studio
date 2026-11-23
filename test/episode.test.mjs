@@ -125,7 +125,7 @@ test("worker audio: the run requests audio, renders meanwhile, waits, then mixes
     mkdirSync(dirs.audio, { recursive: true });
     ffmpeg(["-f", "lavfi", "-i", "sine=f=220:d=28", "-ar", "48000", join(dirs.audio, "vo_id.wav")]);
     ffmpeg(["-f", "lavfi", "-i", "sine=f=110:d=36", "-ac", "2", "-ar", "44100", join(dirs.audio, "bgm.flac")]);
-    writeFileSync(join(dirs.audio, "audio_done.json"), JSON.stringify({ id: e.id, files: ["vo_id.wav", "bgm.flac"], warnings: [] }));
+    writeFileSync(join(dirs.audio, "audio_done.json"), JSON.stringify({ id: e.id, files: ["vo_id.wav", "bgm.flac"], warnings: [], narrationCredit: "Narration: Chatterbox-TTS-Indonesian (test credit)" }));
   };
   const deps = {
     pollMs: 50,
@@ -143,13 +143,14 @@ test("worker audio: the run requests audio, renders meanwhile, waits, then mixes
   };
   const pending = await (async () => {
     // The request is visible to the PC as soon as the run starts; deliver the audio a little later.
-    const run = ep.runEpisode(e, { frames: 49, shotsPerScene: 1, width: 288, height: 512, allowTextOnly: true, audioFrom: "worker" }, { onLog: () => {}, deps });
+    const run = ep.runEpisode(e, { frames: 49, shotsPerScene: 1, width: 288, height: 512, allowTextOnly: true, audioFrom: "worker", narration: "chatterbox" }, { onLog: () => {}, deps });
     for (let i = 0; i < 100 && !(await pipeline.audioJobs()).some((j) => j.id === e.id); i++) await new Promise((r) => setTimeout(r, 50));
     const jobs = await pipeline.audioJobs();
     const job = jobs.find((j) => j.id === e.id);
     assert.ok(job, "audio request listed for the worker");
     assert.match(job.narration, /lebih ia sukai/);
     assert.equal(job.voice, "Leda");
+    assert.equal(job.engine, "chatterbox", "the run asks the PC for the Chatterbox voice");
     deliver();
     return run;
   })();
@@ -160,5 +161,6 @@ test("worker audio: the run requests audio, renders meanwhile, waits, then mixes
   assert.equal(Math.round(Number(info.format.duration)), 33);
   const notes = readFileSync(join(dirs.final, "PRODUCTION.md"), "utf8");
   assert.match(notes, /Powered by Stability AI/);
+  assert.match(notes, /Chatterbox-TTS-Indonesian \(test credit\)/);
   assert.ok(r.warnings.some((w) => /Title card/.test(w)));
 });

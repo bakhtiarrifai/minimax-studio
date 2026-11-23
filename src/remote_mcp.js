@@ -31,6 +31,7 @@ const settings = z
     steps: z.number().int().min(8).max(50).optional(),
     seed: z.number().int().optional(),
     allowTextOnly: z.boolean().optional().describe("Render scenes that have no keyframe from text only (characters drift; adults' faces may appear)"),
+    narration: z.enum(["google", "chatterbox"]).optional().describe("Narration voice: 'google' = Google TTS Leda (default); 'chatterbox' = Chatterbox-TTS-Indonesian cloning Leda, rendered on the Windows PC"),
   })
   .optional();
 const readSpec = (p) => {

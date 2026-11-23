@@ -16,6 +16,7 @@ process.env.MINIMAX_REMOTE_HOST ??= "bakhtiar-server-ts";
 const { api, upload, writeRemote } = await import("../src/remote.js");
 const { speak } = await import("../src/episode.js");
 const { generateBgm, BGM_CREDIT } = await import("../src/bgm.js");
+const { chatterboxSpeak, CHATTERBOX_CREDIT } = await import("../src/chatterbox.js");
 const { ensureComfy, stopComfy, WORKER_PID } = await import("../src/local_services.js");
 // ComfyUI is started for a job and stopped again after this many idle minutes, if this worker started it.
 const IDLE_MIN = Number(process.env.MINIMAX_COMFY_IDLE_MIN ?? 10);
@@ -52,10 +53,28 @@ async function handle(job) {
   const files = [];
   const warnings = [];
   try {
+    let narrationCredit;
     if (job.narration) {
       const vo = path.join(dir, "vo_id.wav");
-      log(`  narration: Google TTS ${job.voice ?? "Leda"} (${job.narration.split(/\s+/).length} words)`);
-      await speak(job.narration, vo, { voice: job.voice ?? "Leda", style: job.narrateStyle ?? undefined });
+      const words = job.narration.split(/\s+/).length;
+      let done = false;
+      if (job.engine === "chatterbox") {
+        try {
+          const state = await ensureComfy({ log });
+          if (state === "started") startedComfy = true;
+          log(`  narration: Chatterbox-TTS-Indonesian cloning Leda (${words} words)`);
+          await chatterboxSpeak(job.narration, vo);
+          narrationCredit = CHATTERBOX_CREDIT;
+          done = true;
+        } catch (err) {
+          warnings.push(`Chatterbox narration failed (${err.message}); Google TTS Leda was used instead.`);
+          log(`  chatterbox failed: ${err.message}; falling back to Google TTS`);
+        }
+      }
+      if (!done) {
+        log(`  narration: Google TTS ${job.voice ?? "Leda"} (${words} words)`);
+        await speak(job.narration, vo, { voice: job.voice ?? "Leda", style: job.narrateStyle ?? undefined });
+      }
       files.push(vo);
     } else warnings.push("The request had no narration text.");
     try {
@@ -71,6 +90,7 @@ async function handle(job) {
     await writeRemote(path.posix.join(job.audioDir, "audio_done.json"), JSON.stringify({
       id: job.id, doneAt: new Date().toISOString(), host: os.hostname(), files: files.map((f) => path.basename(f)), warnings,
       credit: files.some((f) => /bgm\./.test(f)) ? BGM_CREDIT : undefined,
+      narrationCredit,
     }, null, 2));
     log(`${job.id}: delivered ${files.map((f) => path.basename(f)).join(", ")} to ${job.audioDir}`);
   } finally {

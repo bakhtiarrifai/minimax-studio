@@ -18,7 +18,7 @@ const COVER = 1;
 const MAX_TEMPO = 1.15; // above this the narration sounds rushed (Ep13 v1 went out at 1.31x)
 const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp"];
 
-export const DEFAULTS = { width: 576, height: 1024, frames: 97, steps: 18, seed: null, shotsPerScene: 2, voice: "Leda", allowTextOnly: false };
+export const DEFAULTS = { width: 576, height: 1024, frames: 97, steps: 18, seed: null, shotsPerScene: 2, voice: "Leda", narration: "google", allowTextOnly: false };
 
 // ------------------------------------------------------------------ parsing
 
@@ -213,6 +213,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   const dirs = episodeDirs(ep.id);
   for (const d of Object.values(dirs)) await fsp.mkdir(d, { recursive: true });
   const warnings = [];
+  const credits = [];
   const log = (m) => onLog(`${new Date().toISOString().slice(11, 19)} ${m}`);
   const seed = s.seed ?? (parseInt(ep.id.replace(/\D/g, "") || "1", 10) * 101 + 7);
 
@@ -234,7 +235,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
   const fromWorker = (s.audioFrom ?? process.env.MINIMAX_AUDIO_FROM) === "worker";
   if (fromWorker && !fs.existsSync(done)) {
     await fsp.writeFile(path.join(dirs.final, "audio_request.json"), JSON.stringify({
-      id: ep.id, requestedAt: new Date().toISOString(), voice: s.voice, narration: ep.narration, narrateStyle: ep.narrateStyle,
+      id: ep.id, requestedAt: new Date().toISOString(), voice: s.voice, engine: s.narration ?? "google", narration: ep.narration, narrateStyle: ep.narrateStyle,
       bgm: { seconds: FILM + 3, seed, prompt: s.bgmPrompt ?? null },
     }, null, 2));
     log("audio: requested from the PC audio worker (narration + backsound); rendering the shots meanwhile");
@@ -299,6 +300,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
     try {
       const d = JSON.parse(await fsp.readFile(done, "utf8"));
       for (const w of d.warnings ?? []) warnings.push(`Audio worker: ${w}`);
+      if (d.narrationCredit) credits.push(d.narrationCredit);
     } catch {}
   }
   let tempo = 1;
@@ -382,6 +384,7 @@ export async function runEpisode(ep, settings, { onLog = () => {}, shouldStop = 
     `- Shots: ${shots.length} x ${s.frames} frames at ${s.width}x${s.height}, ${s.steps} steps, seed from ${seed}; footage ${footage.toFixed(1)} s, retimed x${stretch.toFixed(2)}.`,
     `- Narration: ${hasVo ? `audio/${ep.id}/vo_id.wav, tempo x${tempo.toFixed(2)}` : "none"}. Subtitles: ${fs.existsSync(srtPath) ? "subs/en.srt from the spec" : "none"}.`,
     `- ${bgm ? `${BGM_CREDIT} (audio/${ep.id}/${path.basename(bgm)})` : "Backsound: none"}.`,
+    ...credits.map((c) => `- ${c}.`),
     `- Sources in the spec: ${ep.sources ?? "none given"}.`,
     "",
     "## Warnings",
