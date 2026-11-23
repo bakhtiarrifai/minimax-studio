@@ -153,6 +153,18 @@ Mandarin, Spanyol, Prancis, Hindi, Italia, Portugis. Model di `ComfyUI/models/tt
 di sistem. Contoh: `python -I scripts/kokoro_tts.py --voice af_heart --text "..." --out narasi_en.wav`
 (`--list-voices` untuk daftar suara). Seri "Kisah Sahabat Cilik" tetap memakai Google TTS Leda.
 
+**TTS bahasa Indonesia lokal (dipasang 23 Nov 2026 dari `pipeline_comfyui_multi_node_audio_video.md`, untuk dicoba;
+seri tetap Leda):**
+
+| Mesin | Cara pakai | Lisensi |
+|---|---|---|
+| Chatterbox-TTS-Indonesian (grandhigh), clone suara dari `ComfyUI/input/voice_refs/` | `node scripts/chatterbox_id.mjs --ref voice_refs/leda_ref.wav --text "..." --out x.wav` (lewat ComfyUI, node TTS-Audio-Suite `local:Indonesian`) | Apache-2.0; dataset FLEURS CC-BY-4.0 (atribusi) |
+| Piper `id_ID-news_tts-medium` | `python -I scripts/tts_compare_id.py --engines piper --out <folder>` | Kode MIT, lisensi dataset suara tidak jelas |
+| Meta MMS `mms-tts-ind` | `python -I scripts/tts_compare_id.py --engines mms --out <folder>` | CC-BY-NC-4.0: **bukan untuk konten yang dimonetisasi** |
+
+Custom node ComfyUI yang ikut terpasang: TTS-Audio-Suite, VideoHelperSuite, KJNodes. Semua paket Python hanya
+ditambah, tidak ada yang diubah (daftar sebelum: `C:\Projects\ComfyUI\pip-freeze-before-audio-nodes-20261123.txt`).
+
 Lisensi Stable Audio Open (Stability AI Community License): gratis di bawah US$1 juta pendapatan per tahun. Penggunaan
 komersial wajib mendaftar gratis di https://stability.ai/community-license dan mencantumkan "Powered by Stability AI"
 (sudah ditulis otomatis di `PRODUCTION.md`).
