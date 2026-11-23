@@ -25,10 +25,58 @@ export function loadCredentials({ host, env = process.env, file = PASSWORD_FILE 
 }
 
 const digest = (s) => crypto.createHash("sha256").update(String(s)).digest();
+const b64json = (s) => JSON.parse(Buffer.from(s, "base64url").toString("utf8"));
 
-// HTTP Basic auth: works for the page, its fetch() calls and the <video> element without any extra client code.
-export function authorized(req, creds) {
-  if (!creds) return true;
+// Cloudflare Access in front of the studio (MINIMAX_STUDIO_ACCESS_TEAM + MINIMAX_STUDIO_ACCESS_AUD): the visitor logs in
+// once at Cloudflare, and every request reaches the studio with a signed Cf-Access-Jwt-Assertion. The studio checks that
+// signature, so a request that did not pass Access (a misconfigured policy, another route to the port) is still refused.
+export function accessVerifier({ team, aud, fetchImpl = fetch, now = () => Date.now() }) {
+  const issuer = `https://${team}.cloudflareaccess.com`;
+  let keys = new Map();
+  let fetchedAt = 0;
+  const refresh = async () => {
+    const res = await fetchImpl(`${issuer}/cdn-cgi/access/certs`, { signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) throw new Error(`Access certs: HTTP ${res.status}`);
+    const { keys: list = [] } = await res.json();
+    keys = new Map(list.map((k) => [k.kid, crypto.createPublicKey({ key: k, format: "jwk" })]));
+    fetchedAt = now();
+  };
+  return async function verify(token) {
+    try {
+      const [h, p, s] = String(token || "").split(".");
+      if (!h || !p || !s) return null;
+      const header = b64json(h);
+      if (header.alg !== "RS256") return null;
+      // Keys rotate: refresh hourly, or at most once a minute when an unknown key id shows up.
+      if (!keys.has(header.kid) || now() - fetchedAt > 3_600_000) {
+        if (now() - fetchedAt > 60_000 || !keys.size) await refresh();
+      }
+      const key = keys.get(header.kid);
+      if (!key || !crypto.verify("RSA-SHA256", Buffer.from(`${h}.${p}`), key, Buffer.from(s, "base64url"))) return null;
+      const claims = b64json(p);
+      const t = now() / 1000;
+      const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+      if (claims.iss !== issuer || !auds.includes(aud) || !(claims.exp > t) || (claims.nbf && claims.nbf > t + 60)) return null;
+      return claims;
+    } catch {
+      return null;
+    }
+  };
+}
+
+const LOCAL_HOST = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/i;
+const cookie = (req, name) => (req.headers.cookie || "").split(/;\s*/).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+
+// `auth`: null (open, loopback only), { type: "basic", user, password }, or { type: "access", verify }.
+export async function authorized(req, auth) {
+  if (!auth) return true;
+  if (auth.type === "access") {
+    // Tools on the server itself call http://127.0.0.1:<port>; the tunnel always sends the public hostname.
+    if (LOCAL_HOST.test(req.headers.host || "")) return true;
+    const token = req.headers["cf-access-jwt-assertion"] || cookie(req, "CF_Authorization");
+    return Boolean(await auth.verify(token));
+  }
+  const creds = auth;
   const header = req.headers.authorization || "";
   if (!header.startsWith("Basic ")) return false;
   const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");

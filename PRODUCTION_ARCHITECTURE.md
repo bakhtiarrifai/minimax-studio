@@ -126,11 +126,11 @@ Kondisi nyata ternyata lebih sederhana dari rancangan di atas: **GaiaNAS adalah 
 | Folder produksi di NAS | ✅ | `/mnt/gaia/production_assets/{audio,images,videos,final}` |
 | Web Studio di Node B | ✅ | Service `systemctl --user minimax-studio`, `127.0.0.1:8795`, env di `~/.config/minimax-studio/env` |
 | Path studio → NAS (Langkah 2) | ✅ | `MINIMAX_ASSETS_ROOT=/mnt/gaia/production_assets`: shot ke `videos/`, export ke `final/`, panel "Shared Assets" membaca `audio/` dan `images/` |
-| Keamanan studio | ✅ | Login wajib (user `studio`, password di `~/.config/minimax-studio/password`), endpoint file dikunci ke folder produksi, tanpa CORS. Sebelumnya `/api/video` bisa membaca file apa pun di disk |
+| Keamanan studio | ✅ | Satu login saja: Cloudflare Access, seperti situs `*.upgradingu.com` lainnya. Studio tetap memeriksa token Access yang ditandatangani di setiap request; request lokal di server (`127.0.0.1`) tidak perlu token. Endpoint file dikunci ke folder produksi, tanpa CORS. Sebelumnya `/api/video` bisa membaca file apa pun di disk |
 | MiniMax H3 di Node B (ROCm, RX 9060 XT) | ✅ | `comfyui.service` di `127.0.0.1:8188`, model lengkap, 4 shot sudah dirender 21 Nov (±9 menit per shot) |
 | Node A → NAS | ✅ lewat SSH | Jalur yang dipilih: `scripts\sync_to_nas.ps1 -Episode <ep>` menyalin audio dan keyframe ke `audio/<ep>/` dan `images/<ep>/` (diuji dengan narasi + cover Ep13). Drive `Z:` opsional dan belum dipasang: Windows 11 mewajibkan SMB signing, sedangkan share hanya mengizinkan tamu |
 | `minimax.upgradingu.com` (Langkah 3) | ✅ | Ingress di tunnel `screener` → `http://127.0.0.1:8795`, CNAME dibuat 23 Nov. Backup config: `~/.cloudflared/screener.yml.bak-20261123-minimax` |
-| Cloudflare Access (Langkah 3.5) | ✅ | Subdomain langsung tercakup aplikasi Access `upgradingu` yang sama dengan `screener`/`godeye`/`gaianas` (login Google). Pastikan kebijakannya hanya mengizinkan email pribadi Anda. Setelah Access, studio masih meminta login `studio` |
+| Cloudflare Access (Langkah 3.5) | ✅ | Subdomain langsung tercakup aplikasi Access `upgradingu` yang sama dengan `screener`/`godeye`/`gaianas` (login Google). Pastikan kebijakannya hanya mengizinkan email pribadi Anda |
 | Nginx Proxy Manager (Langkah 4) | ✖ tidak dipakai | Cloudflare Tunnel sudah ada dan tidak perlu membuka port router |
 
 ### Langkah yang tersisa

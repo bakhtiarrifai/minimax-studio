@@ -27,7 +27,7 @@ const MIME = {
 // In-memory jobs store
 const jobs = new Map();
 
-// `auth`: { user, password } from loadCredentials(), or null for a loopback-only studio.
+// `auth`: from loadAuth() in studio.js: Cloudflare Access, a Basic login, or null for a loopback-only studio.
 export function createStudioServer({ auth = null } = {}) {
   // The only folders the file endpoints may read or write.
   const allowed = pathGuard([OUTPUT_DIR, FINAL_DIR, ASSETS_ROOT, COMFYUI_OUTPUT_DIR]);
@@ -42,7 +42,11 @@ export function createStudioServer({ auth = null } = {}) {
     };
 
     // No CORS: the UI is served from this same origin, and other sites must not drive the GPU.
-    if (!authorized(req, auth)) {
+    if (!(await authorized(req, auth))) {
+      if (auth.type === "access") {
+        res.writeHead(403, { "Content-Type": "text/plain" });
+        return res.end("Open the studio through its Cloudflare Access address and log in there.");
+      }
       res.writeHead(401, { "WWW-Authenticate": 'Basic realm="MiniMax Studio", charset="UTF-8"', "Content-Type": "text/plain" });
       return res.end("Login required");
     }
