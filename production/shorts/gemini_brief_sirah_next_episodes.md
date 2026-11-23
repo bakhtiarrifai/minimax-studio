@@ -35,7 +35,7 @@ Subtitle: Bahasa Inggris.
 
 Ide yang boleh kamu pertimbangkan (verifikasi dulu!): Usamah bin Zaid muda, Ali bin Abi Thalib kecil, Asma' binti
 Abi Bakar (narator perempuan boleh), Umar bin Abi Salamah ("sebut nama Allah dan makan dari yang dekat"), Hasan dan
-Husain bersama kakeknya, Abdullah bin Umar, Jabir bin Abdullah, Ummu Khalid kecil dan baju bergaris, dan lain-lain.
+Husain bersama kakeknya, Abdullah bin Umar, Jabir bin Abdullah, Ummu Khalid kecil dan baju hitam bercorak (Bukhari 5823: corak hijau atau kuning), dan lain-lain.
 
 ---
 

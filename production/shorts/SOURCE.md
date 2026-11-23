@@ -6,8 +6,8 @@ the hadith texts"), yaitu versi terakhir kit Shorts Flow Studio.
 | File | Asal | Diubah di sini? |
 |---|---|---|
 | `README.md` | `kits/shorts/README.md` | Tidak |
-| `gemini_brief_sirah_next_episodes.md` | `kits/shorts/` | Tidak |
-| `kisah_sahabat_cilik_spec_ep_9_12.md` | `kits/shorts/` (sudah dikoreksi terhadap teks hadits) | Tidak |
+| `gemini_brief_sirah_next_episodes.md` | `kits/shorts/` | Ide Ep10: "baju hitam bercorak", bukan "baju bergaris" (juga di flow-studio) |
+| `kisah_sahabat_cilik_spec_ep_9_12.md` | `kits/shorts/` (sudah dikoreksi terhadap teks hadits) | Judul Ep10 jadi "The Pretty Little Black Dress" (juga di flow-studio) |
 | `title_overlay.py` | `kits/shorts/` | Tidak |
 | `backsound.py` | `kits/shorts/` | Tidak |
 | `build_ep.sh` | `kits/shorts/` | Ya: berhenti kalau narasi perlu dipercepat lebih dari 1,15x (`MAX_TEMPO`) |

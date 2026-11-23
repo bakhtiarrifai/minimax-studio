@@ -9,7 +9,7 @@
 | \# | Episode ID | Tokoh (Usia) | Judul Cover (EN) | Nilai Inti | Sumber Sahih | 
 | ----- | ----- | ----- | ----- | ----- | ----- | 
 | 09 | `ep09_umar_salamah` | Umar bin Abi Salamah (anak, ±9 thn ilustrasi) | The Polite Table Manners | Adab makan & tangan kanan | *Shahih al-Bukhari* no. 5376; *Shahih Muslim* no. 2022 | 
-| 10 | `ep10_ummu_khalid` | Ummu Khalid binti Khalid (anak kecil, ±7 thn ilustrasi) | The Pretty Striped Cloak | Syukur & mendoakan pemberi hadiah | *Shahih al-Bukhari* no. 5823, 5845 | 
+| 10 | `ep10_ummu_khalid` | Ummu Khalid binti Khalid (anak kecil, ±7 thn ilustrasi) | The Pretty Little Black Dress | Syukur & mendoakan pemberi hadiah | *Shahih al-Bukhari* no. 5823, 5845 | 
 | 11 | `ep11_ibn_umar` | Abdullah bin Umar (termuda di majelis, ±12 thn ilustrasi) | The Secret of the Palm Tree | Ilmu & menghormati orang tua | *Shahih al-Bukhari* no. 61, 131, 4698; *Shahih Muslim* no. 2811 | 
 | 12 | `ep12_zaid_arqam` | Zaid bin Arqam (masih muda, ±12 thn ilustrasi) | The Boy Who Spoke the Truth | Kejujuran meski belum dipercaya | *Shahih al-Bukhari* no. 4900, 4901 | 
 
@@ -146,7 +146,7 @@ and eat with polite manners!
 
 * **Episode ID:** `ep10_ummu_khalid`
 
-* **Judul cover (EN):** The Pretty Striped Cloak
+* **Judul cover (EN):** The Pretty Little Black Dress
 
 * **Nilai inti:** Bergembira dan bersyukur atas pemberian baik, serta mendoakan kebaikan bagi orang yang memberi.
 
@@ -254,7 +254,7 @@ and pray for anyone who gives you a gift!
 
 * **EN:** So heartwarming! Young Ummu Khalid receives a beautiful little black dress from the Prophet (PBUH) along with a prayer for a long, blessed life! 🎁💛 #Seerah #IslamicStoriesForKids #MuslimKids #Shorts
 
-* Judul video: "Kisah Sahabat Cilik #10: The Pretty Striped Cloak"
+* Judul video: "Kisah Sahabat Cilik #10: The Pretty Little Black Dress"
 
 ### Episode 11: Abdullah bin Umar — Tebak Pohon Paling Istimewa (Ilmu & Adab)
 
